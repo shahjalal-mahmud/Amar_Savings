@@ -1,14 +1,8 @@
 pluginManagement {
     repositories {
-        google {
-            content {
-                includeGroupByRegex("com\\.android.*")
-                includeGroupByRegex("com\\.google.*")
-                includeGroupByRegex("androidx.*")
-            }
-        }
-        mavenCentral()
-        gradlePluginPortal()
+        google()              // Simplified: removes the restrictive content filters
+        mavenCentral()        // KSP plugin wrappers live here
+        gradlePluginPortal()  // Fallback portal
     }
 }
 dependencyResolutionManagement {
