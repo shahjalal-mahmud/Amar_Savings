@@ -11,49 +11,67 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 private val DarkColorScheme = darkColorScheme(
-    primary          = Emerald400,
-    onPrimary        = Slate900,
+    primary = Emerald400,
+    onPrimary = Slate900,
+
     primaryContainer = Emerald800,
     onPrimaryContainer = Emerald100,
-    secondary        = Amber400,
-    onSecondary      = Slate900,
-    secondaryContainer = Color(0xFF3D2E00),
-    onSecondaryContainer = Amber400,
-    error            = Rose400,
-    onError          = Slate900,
-    errorContainer   = Color(0xFF4D0017),
+
+    secondary = Gold400,
+    onSecondary = Slate900,
+
+    secondaryContainer = Color(0xFF342A16),
+    onSecondaryContainer = Gold400,
+
+    error = Rose400,
+    onError = Slate900,
+
+    errorContainer = Color(0xFF3A1F25),
     onErrorContainer = Rose400,
-    background       = SurfaceDark,
-    onBackground     = Slate100,
-    surface          = SurfaceCardDark,
-    onSurface        = Slate100,
-    surfaceVariant   = SurfaceElevDark,
+
+    background = SurfaceDark,
+    onBackground = Slate100,
+
+    surface = SurfaceCardDark,
+    onSurface = Slate100,
+
+    surfaceVariant = SurfaceElevDark,
     onSurfaceVariant = Slate400,
-    outline          = Slate700,
-    outlineVariant   = Slate800
+
+    outline = Color(0xFF2B3647),
+    outlineVariant = Color(0xFF202A39)
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary          = Emerald600,
-    onPrimary        = White,
+    primary = Emerald600,
+    onPrimary = White,
+
     primaryContainer = Emerald100,
     onPrimaryContainer = Emerald900,
-    secondary        = Amber500,
-    onSecondary      = White,
-    secondaryContainer = Color(0xFFFFF3CD),
-    onSecondaryContainer = Color(0xFF5A3800),
-    error            = Rose500,
-    onError          = White,
-    errorContainer   = Rose100,
-    onErrorContainer = Color(0xFF7D0020),
-    background       = Slate50,
-    onBackground     = Slate900,
-    surface          = White,
-    onSurface        = Slate900,
-    surfaceVariant   = Slate100,
+
+    secondary = Gold500,
+    onSecondary = White,
+
+    secondaryContainer = Color(0xFFF9EFD8),
+    onSecondaryContainer = Color(0xFF5B4518),
+
+    error = Rose500,
+    onError = White,
+
+    errorContainer = Rose100,
+    onErrorContainer = Color(0xFF7A3240),
+
+    background = Color(0xFFFAFBFC),
+    onBackground = Slate900,
+
+    surface = White,
+    onSurface = Slate900,
+
+    surfaceVariant = Slate100,
     onSurfaceVariant = Slate600,
-    outline          = Slate300,
-    outlineVariant   = Slate200
+
+    outline = Slate300,
+    outlineVariant = Slate200
 )
 
 @Composable

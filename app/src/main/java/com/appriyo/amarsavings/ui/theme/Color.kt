@@ -2,44 +2,43 @@ package com.appriyo.amarsavings.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Brand — deep teal/emerald
-val Emerald50  = Color(0xFFECFDF5)
-val Emerald100 = Color(0xFFD1FAE5)
-val Emerald200 = Color(0xFFA7F3D0)
-val Emerald400 = Color(0xFF34D399)
-val Emerald500 = Color(0xFF10B981)
-val Emerald600 = Color(0xFF059669)
-val Emerald700 = Color(0xFF047857)
-val Emerald800 = Color(0xFF065F46)
-val Emerald900 = Color(0xFF064E3B)
+// Primary Brand (Modern Sage Emerald)
+val Emerald50  = Color(0xFFF1FCF7)
+val Emerald100 = Color(0xFFDDF5EA)
+val Emerald200 = Color(0xFFBFEAD7)
+val Emerald400 = Color(0xFF62C49A)
+val Emerald500 = Color(0xFF4CAF84)
+val Emerald600 = Color(0xFF3D9871)
+val Emerald700 = Color(0xFF327C5D)
+val Emerald800 = Color(0xFF295F49)
+val Emerald900 = Color(0xFF214A39)
 
-// Accent — warm amber
-val Amber400   = Color(0xFFFBBF24)
-val Amber500   = Color(0xFFF59E0B)
+// Goal / Savings Accent
+val Gold400 = Color(0xFFD9B86B)
+val Gold500 = Color(0xFFCFA24B)
 
-// Withdraw accent
-val Rose400    = Color(0xFFFB7185)
-val Rose500    = Color(0xFFF43F5E)
-val Rose100    = Color(0xFFFFE4E6)
+// Withdrawal Accent
+val Rose400 = Color(0xFFE17D8E)
+val Rose500 = Color(0xFFD56779)
+val Rose100 = Color(0xFFFCECEE)
 
-// Neutral
-val Slate50    = Color(0xFFF8FAFC)
-val Slate100   = Color(0xFFF1F5F9)
-val Slate200   = Color(0xFFE2E8F0)
-val Slate300   = Color(0xFFCBD5E1)
-val Slate400   = Color(0xFF94A3B8)
-val Slate500   = Color(0xFF64748B)
-val Slate600   = Color(0xFF475569)
-val Slate700   = Color(0xFF334155)
-val Slate800   = Color(0xFF1E293B)
-val Slate850   = Color(0xFF172033)
-val Slate900   = Color(0xFF0F172A)
-val Slate950   = Color(0xFF0A1628)
+// Neutral Palette
+val Slate50  = Color(0xFFF8F9FB)
+val Slate100 = Color(0xFFF1F3F6)
+val Slate200 = Color(0xFFE5E9EE)
+val Slate300 = Color(0xFFD4DAE2)
+val Slate400 = Color(0xFF98A2B3)
+val Slate500 = Color(0xFF667085)
+val Slate600 = Color(0xFF475467)
+val Slate700 = Color(0xFF344054)
+val Slate800 = Color(0xFF1F2937)
+val Slate850 = Color(0xFF18212F)
+val Slate900 = Color(0xFF111827)
 
-// Surface
-val SurfaceDark      = Color(0xFF141D2E)
-val SurfaceCardDark  = Color(0xFF1A2540)
-val SurfaceElevDark  = Color(0xFF1F2D47)
+// Dark Surfaces
+val SurfaceDark     = Color(0xFF0F1722)
+val SurfaceCardDark = Color(0xFF171F2D)
+val SurfaceElevDark = Color(0xFF1C2636)
 
 val White = Color(0xFFFFFFFF)
 val Black = Color(0xFF000000)
