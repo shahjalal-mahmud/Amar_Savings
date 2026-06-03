@@ -20,7 +20,6 @@ import com.appriyo.amarsavings.ui.components.CashInputBottomSheet
 import com.appriyo.amarsavings.ui.components.GoalDialog
 import com.appriyo.amarsavings.ui.components.TransactionItem
 import com.appriyo.amarsavings.util.formatTaka
-import com.appriyo.amarsavings.util.smartFormatDate
 import com.appriyo.amarsavings.viewmodel.DashboardViewModel
 import com.appriyo.amarsavings.viewmodel.TransactionViewModel
 import org.koin.androidx.compose.koinViewModel
