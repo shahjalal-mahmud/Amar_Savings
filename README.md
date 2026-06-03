@@ -31,15 +31,15 @@ Every feature is built around this core principle. No clutter. No complexity. Ju
 
 ## ✨ Key Features
 
-| Feature | Description |
-|---------|-------------|
-| 🏦 **Denomination-Based Input** | Add/withdraw cash by entering note quantities (1 to 1000 Taka) |
-| 🎯 **Savings Goal Tracking** | Set a target amount and watch your progress |
-| 📊 **Real-Time Dashboard** | See savings overview, progress, and recent transactions at a glance |
-| 🔄 **Offline-First** | Full functionality without internet connection |
-| ☁️ **Google Drive Backup** | Optional cloud backup to keep your data safe |
-| 📜 **Transaction History** | View, edit, or delete past entries |
-| 🎨 **Adaptive Theme** | Follows your device's dark/light mode automatically |
+| Feature                         | Description                                                         |
+|---------------------------------|---------------------------------------------------------------------|
+| 🏦 **Denomination-Based Input** | Add/withdraw cash by entering note quantities (1 to 1000 Taka)      |
+| 🎯 **Savings Goal Tracking**    | Set a target amount and watch your progress                         |
+| 📊 **Real-Time Dashboard**      | See savings overview, progress, and recent transactions at a glance |
+| 🔄 **Offline-First**            | Full functionality without internet connection                      |
+| ☁️ **Google Drive Backup**      | Optional cloud backup to keep your data safe                        |
+| 📜 **Transaction History**      | View, edit, or delete past entries                                  |
+| 🎨 **Adaptive Theme**           | Follows your device's dark/light mode automatically                 |
 
 ---
 
@@ -78,18 +78,18 @@ Every feature is built around this core principle. No clutter. No complexity. Ju
 
 <div align="center">
 
-| Denomination | Input Field |
-|:------------:|:------------:|
-| ৳1000 | [Quantity] × 1000 |
-| ৳500 | [Quantity] × 500 |
-| ৳200 | [Quantity] × 200 |
-| ৳100 | [Quantity] × 100 |
-| ৳50 | [Quantity] × 50 |
-| ৳20 | [Quantity] × 20 |
-| ৳10 | [Quantity] × 10 |
-| ৳5 | [Quantity] × 5 |
-| ৳2 | [Quantity] × 2 |
-| ৳1 | [Quantity] × 1 |
+| Denomination |    Input Field    |
+|:------------:|:-----------------:|
+|    ৳1000     | [Quantity] × 1000 |
+|     ৳500     | [Quantity] × 500  |
+|     ৳200     | [Quantity] × 200  |
+|     ৳100     | [Quantity] × 100  |
+|     ৳50      |  [Quantity] × 50  |
+|     ৳20      |  [Quantity] × 20  |
+|     ৳10      |  [Quantity] × 10  |
+|      ৳5      |  [Quantity] × 5   |
+|      ৳2      |  [Quantity] × 2   |
+|      ৳1      |  [Quantity] × 1   |
 
 </div>
 
@@ -127,17 +127,17 @@ Every feature is built around this core principle. No clutter. No complexity. Ju
 
 <div align="center">
 
-| Component | Technology |
-|-----------|------------|
-| **Language** | Kotlin |
-| **UI Toolkit** | Jetpack Compose |
-| **Architecture** | MVVM |
-| **DI** | Koin |
-| **Local DB** | Room |
-| **Preferences** | DataStore |
-| **Backup** | Google Drive API + Sign-In |
-| **Concurrency** | Coroutines + Flow |
-| **Navigation** | Navigation Compose |
+| Component        | Technology                 |
+|------------------|----------------------------|
+| **Language**     | Kotlin                     |
+| **UI Toolkit**   | Jetpack Compose            |
+| **Architecture** | MVVM                       |
+| **DI**           | Koin                       |
+| **Local DB**     | Room                       |
+| **Preferences**  | DataStore                  |
+| **Backup**       | Google Drive API + Sign-In |
+| **Concurrency**  | Coroutines + Flow          |
+| **Navigation**   | Navigation Compose         |
 
 </div>
 
