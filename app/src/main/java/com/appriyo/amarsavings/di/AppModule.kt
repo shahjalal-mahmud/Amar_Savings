@@ -12,7 +12,6 @@ import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.dsl.module
 
 val appModule = module {
-
     single {
         Room.databaseBuilder(
             androidContext(),
@@ -20,7 +19,6 @@ val appModule = module {
             AppDatabase.DATABASE_NAME
         ).build()
     }
-
     single { get<AppDatabase>().transactionDao() }
     single { AppPreferences(androidContext()) }
     single { SavingsRepository(get(), get()) }
