@@ -1,0 +1,113 @@
+name: "Bug Report"
+description: "Report a bug to help us improve AmarSavings."
+title: "[Bug]: "
+labels: ["bug", "triage"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. Please fill out the
+        sections below — the more detail you provide, the faster we can
+        reproduce and fix the issue.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: "Describe the Bug"
+      description: "A clear and concise description of what the bug is."
+      placeholder: "When I tap the Add button on the dashboard, the app crashes…"
+    validations:
+      required: true
+      min_length: 30
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: "Steps to Reproduce"
+      description: "Numbered steps that trigger the bug."
+      placeholder: |
+        1. Open the app
+        2. Sign in with Google
+        3. Tap "Add Transaction"
+        4. Enter ৳500
+        5. Observe the crash
+    validations:
+      required: true
+
+  - type: input
+    id: expected
+    attributes:
+      label: "Expected Behaviour"
+      description: "What did you expect to happen?"
+      placeholder: "The transaction should be saved and the balance should update."
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: "Actual Behaviour"
+      description: "What actually happened?"
+      placeholder: "The app crashes with a NullPointerException…"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: device
+    attributes:
+      label: "Device Type"
+      description: "What kind of device were you using?"
+      options:
+        - "Phone"
+        - "Tablet"
+        - "Emulator"
+        - "Other"
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: "Android Version"
+      description: "The Android version running on your device (Settings → About phone)."
+      placeholder: "Android 14 (API 34)"
+
+  - type: input
+    id: app-version
+    attributes:
+      label: "App Version"
+      description: "Open AmarSavings → Settings → About to find this."
+      placeholder: "0.1.0 (build 1)"
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: "Relevant Logcat / Stack Trace"
+      description: |
+        Paste any logcat output or stack traces here. Wrap in triple
+        backticks. If you don't have one, that's fine — leave blank.
+      render: shell
+      placeholder: |
+        ```text
+        FATAL EXCEPTION: main
+        Process: com.appriyo.amarsavings
+        …
+        ```
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: "Self-check"
+      description: "Please confirm the following before submitting."
+      options:
+        - label: "I have searched the existing issues and this bug has not been reported yet."
+        - label: "I can reproduce this bug on the latest `main` branch (or latest Play Store release)."
+        - label: "I have read the Code of Conduct and agree to follow it."
+
+  - type: textarea
+    id: context
+    attributes:
+      label: "Additional Context"
+      description: "Anything else that might help — screenshots, recordings, related issues."
+      placeholder: "Add screenshots, screen recordings, or links to related issues/PRs here."
