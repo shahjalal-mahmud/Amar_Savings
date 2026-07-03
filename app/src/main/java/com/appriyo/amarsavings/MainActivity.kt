@@ -29,7 +29,6 @@ class MainActivity : ComponentActivity() {
                 val navController = rememberNavController()
                 AppNavGraph(
                     navController = navController,
-                    isDark = isDark,
                     onToggleTheme = {
                         scope.launch {
                             prefs.setThemeMode(

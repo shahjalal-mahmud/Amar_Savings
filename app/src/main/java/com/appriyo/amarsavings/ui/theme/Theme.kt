@@ -10,67 +10,93 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Emerald400,
-    onPrimary = Slate900,
+    primary = Indigo400,
+    onPrimary = Gray950,
 
-    primaryContainer = Emerald800,
-    onPrimaryContainer = Emerald100,
+    primaryContainer = DarkContainerPrimary,
+    onPrimaryContainer = Indigo200,
 
-    secondary = Gold400,
-    onSecondary = Slate900,
+    inversePrimary = Indigo600,
 
-    secondaryContainer = Color(0xFF342A16),
-    onSecondaryContainer = Gold400,
+    secondary = Violet400,
+    onSecondary = Gray950,
 
-    error = Rose400,
-    onError = Slate900,
+    secondaryContainer = DarkContainerSecondary,
+    onSecondaryContainer = Violet400,
 
-    errorContainer = Color(0xFF3A1F25),
-    onErrorContainer = Rose400,
+    tertiary = Amber400,
+    onTertiary = Gray950,
 
-    background = SurfaceDark,
-    onBackground = Slate100,
+    tertiaryContainer = DarkContainerTertiary,
+    onTertiaryContainer = Amber300,
 
-    surface = SurfaceCardDark,
-    onSurface = Slate100,
+    error = Coral400,
+    onError = Gray950,
 
-    surfaceVariant = SurfaceElevDark,
-    onSurfaceVariant = Slate400,
+    errorContainer = DarkContainerError,
+    onErrorContainer = Coral300,
 
-    outline = Color(0xFF2B3647),
-    outlineVariant = Color(0xFF202A39)
+    background = SurfaceDarkBase,
+    onBackground = Gray50,
+
+    surface = SurfaceDark,
+    onSurface = Gray50,
+
+    surfaceVariant = SurfaceDarkHigh,
+    onSurfaceVariant = Gray300,
+
+    surfaceTint = Indigo400,
+    inverseSurface = Gray50,
+    inverseOnSurface = Gray900,
+
+    outline = DarkOutline,
+    outlineVariant = DarkOutlineVariant,
+    scrim = Color(0xFF000000)
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = Emerald600,
+    primary = Indigo500,
     onPrimary = White,
 
-    primaryContainer = Emerald100,
-    onPrimaryContainer = Emerald900,
+    primaryContainer = Indigo100,
+    onPrimaryContainer = Indigo800,
 
-    secondary = Gold500,
+    inversePrimary = Indigo300,
+
+    secondary = Violet500,
     onSecondary = White,
 
-    secondaryContainer = Color(0xFFF9EFD8),
-    onSecondaryContainer = Color(0xFF5B4518),
+    secondaryContainer = LightContainerSecondary,
+    onSecondaryContainer = Violet600,
 
-    error = Rose500,
+    tertiary = Amber500,
+    onTertiary = White,
+
+    tertiaryContainer = LightContainerTertiary,
+    onTertiaryContainer = LightOnTertiaryContainer,
+
+    error = Coral500,
     onError = White,
 
-    errorContainer = Rose100,
-    onErrorContainer = Color(0xFF7A3240),
+    errorContainer = Coral100,
+    onErrorContainer = Coral600,
 
-    background = Color(0xFFFAFBFC),
-    onBackground = Slate900,
+    background = SurfaceLightBase,
+    onBackground = Gray900,
 
-    surface = White,
-    onSurface = Slate900,
+    surface = SurfaceLight,
+    onSurface = Gray900,
 
-    surfaceVariant = Slate100,
-    onSurfaceVariant = Slate600,
+    surfaceVariant = SurfaceLightHigh,
+    onSurfaceVariant = Gray500,
 
-    outline = Slate300,
-    outlineVariant = Slate200
+    surfaceTint = Indigo500,
+    inverseSurface = Gray900,
+    inverseOnSurface = Gray50,
+
+    outline = Gray200,
+    outlineVariant = Gray100,
+    scrim = Color(0x66000000)
 )
 
 @Composable
@@ -85,7 +111,10 @@ fun AmarSavingsTheme(
         SideEffect {
             val window = (view.context as Activity).window
             window.statusBarColor = Color.Transparent.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+            window.navigationBarColor = colorScheme.background.toArgb()
+            val controller = WindowCompat.getInsetsController(window, view)
+            controller.isAppearanceLightStatusBars = !darkTheme
+            controller.isAppearanceLightNavigationBars = !darkTheme
         }
     }
 
