@@ -29,8 +29,10 @@ import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.ArrowUpward
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Flag
+import androidx.compose.material.icons.rounded.LightMode
 import androidx.compose.material.icons.rounded.Savings
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -39,6 +41,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -72,7 +75,11 @@ import org.koin.androidx.compose.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DashboardScreen(onViewAll: () -> Unit) {
+fun DashboardScreen(
+    onViewAll: () -> Unit,
+    isDark: Boolean,
+    onToggleTheme: () -> Unit
+) {
     val dashVm: DashboardViewModel = koinViewModel()
     val txVm: TransactionViewModel = koinViewModel()
     val state by dashVm.uiState.collectAsState()
@@ -134,15 +141,24 @@ fun DashboardScreen(onViewAll: () -> Unit) {
                         fontWeight = FontWeight.Bold
                     )
                 }
-                Surface(
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.primaryContainer
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        Icons.Rounded.AccountBalance,
-                        contentDescription = null,
-                        modifier = Modifier.padding(10.dp),
-                        tint = MaterialTheme.colorScheme.primary
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.primaryContainer
+                    ) {
+                        Icon(
+                            Icons.Rounded.AccountBalance,
+                            contentDescription = null,
+                            modifier = Modifier.padding(10.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    ThemeToggleButton(
+                        isDark = isDark,
+                        onClick = onToggleTheme
                     )
                 }
             }
@@ -563,6 +579,34 @@ private fun AddWithdrawFab(
                     contentDescription = if (isExpanded) "Close" else "Add or Withdraw"
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun ThemeToggleButton(
+    isDark: Boolean,
+    onClick: () -> Unit
+) {
+    // Show the icon for the mode the user can switch *into*:
+    //   - currently light → tap to go dark → show moon (DarkMode)
+    //   - currently dark  → tap to go light → show sun (LightMode)
+    val (icon, description) = if (isDark) {
+        Icons.Rounded.LightMode to "Switch to light mode"
+    } else {
+        Icons.Rounded.DarkMode to "Switch to dark mode"
+    }
+
+    Surface(
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.secondaryContainer
+    ) {
+        IconButton(onClick = onClick) {
+            Icon(
+                imageVector = icon,
+                contentDescription = description,
+                tint = MaterialTheme.colorScheme.onSecondaryContainer
+            )
         }
     }
 }
