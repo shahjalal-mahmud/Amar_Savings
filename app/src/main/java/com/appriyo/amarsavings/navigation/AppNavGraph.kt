@@ -13,11 +13,17 @@ sealed class Route(val path: String) {
 }
 
 @Composable
-fun AppNavGraph(navController: NavHostController) {
+fun AppNavGraph(
+    navController: NavHostController,
+    isDark: Boolean,
+    onToggleTheme: () -> Unit
+) {
     NavHost(navController = navController, startDestination = Route.Dashboard.path) {
         composable(Route.Dashboard.path) {
             DashboardScreen(
-                onViewAll = { navController.navigate(Route.History.path) }
+                onViewAll = { navController.navigate(Route.History.path) },
+                isDark = isDark,
+                onToggleTheme = onToggleTheme
             )
         }
         composable(Route.History.path) {
