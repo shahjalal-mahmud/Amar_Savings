@@ -1,7 +1,6 @@
 package com.appriyo.amarsavings.ui.theme
 
 import android.app.Activity
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
@@ -76,7 +75,7 @@ private val LightColorScheme = lightColorScheme(
 
 @Composable
 fun AmarSavingsTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    darkTheme: Boolean,
     content: @Composable () -> Unit
 ) {
     val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
@@ -96,3 +95,12 @@ fun AmarSavingsTheme(
         content = content
     )
 }
+
+// Encodes a dark/light preference for persistence. Values must stay stable
+// (they are written to DataStore) and align with AppPreferences.THEME_*.
+internal fun encodeThemeMode(isDark: Boolean): String =
+    if (isDark) "dark" else "light"
+
+// Decodes a stored preference value. Anything other than "dark" is treated as light,
+// so a missing/unknown value falls back to light.
+internal fun decodeThemeMode(value: String?): Boolean = value == "dark"
