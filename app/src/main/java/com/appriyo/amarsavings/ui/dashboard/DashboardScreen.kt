@@ -209,7 +209,7 @@ private fun TopHeader(onToggleTheme: () -> Unit) {
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
-                text = "আমার সেভিংস",
+                text = "Amar Savings",
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.SemiBold
