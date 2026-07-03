@@ -1,0 +1,13 @@
+blank_issues_enabled: true
+contact_links:
+  - name: "🔒 Security Vulnerability Report"
+    url: "https://github.com/shahjalal-mahmud/Amar_Savings/security/advisories/new"
+    about: |
+      Please do NOT file security issues as public bugs. Use GitHub private
+      vulnerability reporting on the Security tab so the report stays
+      confidential until a fix is released.
+  - name: "💬 Documentation & Questions"
+    url: "https://github.com/shahjalal-mahmud/Amar_Savings/discussions"
+    about: |
+      Ask questions, share ideas, and discuss the project in GitHub
+      Discussions — best place for "how do I…?" and design conversations.
