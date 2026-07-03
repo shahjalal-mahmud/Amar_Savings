@@ -1,0 +1,81 @@
+name: "Feature Request"
+description: "Suggest an idea or enhancement for AmarSavings."
+title: "[Feature]: "
+labels: ["enhancement"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have an idea that would make AmarSavings better? We'd love to hear
+        it. Please describe the problem you're trying to solve and your
+        proposed solution.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: "Problem / Motivation"
+      description: |
+        What problem are you trying to solve? Why is this feature needed?
+        What user pain does it address?
+      placeholder: |
+        As a user, I want to…
+        Currently, the app doesn't…
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: "Proposed Solution"
+      description: "A clear description of what you want to happen."
+      placeholder: |
+        Add a new screen called "Insights" that shows a chart of monthly
+        savings vs. spending…
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: "Alternatives Considered"
+      description: |
+        What other approaches did you consider? Why is your proposed
+        solution better?
+      placeholder: |
+        - Add charts to the existing dashboard (rejected: dashboard is
+          already crowded)
+        - Add a new bottom-nav item for Insights (chosen)
+      required: false
+
+  - type: textarea
+    id: mocks
+    attributes:
+      label: "Mockups / Screenshots (optional)"
+      description: |
+        Add any visual mockups, sketches, or screenshots that help
+        communicate the idea. Drag-and-drop images into the comment
+        box after submitting.
+      required: false
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: "Scope"
+      description: "Roughly how big is this change?"
+      options:
+        - "Small — minor UI tweak or bug fix-sized"
+        - "Medium — single-screen or feature addition"
+        - "Large — multi-screen or architectural change"
+        - "Breaking — changes existing data formats or public APIs"
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: context
+    attributes:
+      label: "Additional Context"
+      options:
+        - label: "I am willing to submit a pull request implementing this feature."
+        - label: "I have discussed this idea in GitHub Discussions (please link the thread)."
+        - label: "This feature has been requested by other users (please link related issues)."
