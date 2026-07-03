@@ -2,20 +2,48 @@
   <img src="https://img.icons8.com/fluency/96/bangladesh-circular.png" alt="Bangladesh Flag" width="80"/>
   <h1>💰 Amar Savings</h1>
   <p><strong>Track Physical Cash Savings • Built for Bangladeshi Currency • Offline-First</strong></p>
-  
+
   <p>
+    <img src="https://img.shields.io/github/license/shahjalal-mahmud/Amar_Savings?style=for-the-badge" alt="License"/>
     <img src="https://img.shields.io/badge/Kotlin-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white" alt="Kotlin"/>
     <img src="https://img.shields.io/badge/Jetpack%20Compose-4285F4?style=for-the-badge&logo=jetpackcompose&logoColor=white" alt="Jetpack Compose"/>
     <img src="https://img.shields.io/badge/Room-003B4F?style=for-the-badge&logo=sqlite&logoColor=white" alt="Room"/>
     <img src="https://img.shields.io/badge/MVVM-FF6D00?style=for-the-badge&logo=android&logoColor=white" alt="MVVM"/>
   </p>
-  
+
   <p>
-    <img src="https://img.shields.io/badge/Offline--First-2E7D32?style=flat-square" alt="Offline-First"/>
-    <img src="https://img.shields.io/badge/Google%20Drive%20Backup-4285F4?style=flat-square&logo=googledrive&logoColor=white" alt="Google Drive Backup"/>
-    <img src="https://img.shields.io/badge/Minimal%20Design-6200EE?style=flat-square" alt="Minimal Design"/>
+    <img src="https://img.shields.io/github/issues/shahjalal-mahmud/Amar_Savings?style=flat-square" alt="Issues"/>
+    <img src="https://img.shields.io/github/issues-pr/shahjalal-mahmud/Amar_Savings?style=flat-square" alt="PRs"/>
+    <img src="https://img.shields.io/github/contributors/shahjalal-mahmud/Amar_Savings?style=flat-square" alt="Contributors"/>
+    <img src="https://img.shields.io/github/stars/shahjalal-mahmud/Amar_Savings?style=flat-square" alt="Stars"/>
+    <img src="https://img.shields.io/github/last-commit/shahjalal-mahmud/Amar_Savings?style=flat-square" alt="Last Commit"/>
+    <img src="https://img.shields.io/github/actions/workflow/status/shahjalal-mahmud/Amar_Savings/build.yml?branch=main&style=flat-square&label=CI" alt="CI"/>
   </p>
 </div>
+
+---
+
+## 📋 Table of Contents
+
+- [About](#-about-amar-savings)
+- [Screenshots](#-screenshots)
+- [Key Features](#-key-features)
+- [How It Works](#-how-it-works)
+- [Supported Denomination Notes](#-supported-denomination-notes)
+- [Screens](#-screens)
+- [Technical Stack](#-technical-stack)
+- [Authentication & Backup Flow](#-authentication--backup-flow)
+- [What's NOT Included](#-whats-not-included-by-design)
+- [Getting Started](#-getting-started)
+- [Project Structure](#-project-structure)
+- [Roadmap](#-roadmap)
+- [Contributing](#-contributing)
+- [Code of Conduct](#-code-of-conduct)
+- [Security](#-security)
+- [Support](#-support)
+- [Changelog](#-changelog)
+- [License](#-license)
+- [Acknowledgments](#-acknowledgments)
 
 ---
 
@@ -26,6 +54,22 @@
 > **"Track physical savings with the fewest possible taps."**
 
 Every feature is built around this core principle. No clutter. No complexity. Just a reliable tool that helps you stay on top of your savings goals.
+
+Built with **Kotlin**, **Jetpack Compose**, **Material 3**, and **Room**, the app follows the **MVVM** architecture with **Koin** for dependency injection, **Coroutines** + **Flow** for asynchronous work, and **Navigation Compose** for in-app routing.
+
+---
+
+## 📸 Screenshots
+
+> **Screenshots will be added here once the UI is finalised.** Placeholder images
+> will live under `docs/screenshots/` and be embedded like:
+>
+> ```markdown
+> ![Dashboard](docs/screenshots/dashboard.png)
+> ```
+
+If you'd like to contribute screenshots, please open a pull request adding the
+images to `docs/screenshots/` and embedding them above.
 
 ---
 
@@ -47,7 +91,7 @@ Every feature is built around this core principle. No clutter. No complexity. Ju
 
 ### 💸 Adding Savings (Cash In)
 
-1. Tap the **Floating Action Button (FAB)** 
+1. Tap the **Floating Action Button (FAB)**
 2. Enter quantities for each denomination you're adding
 3. Total calculates automatically
 4. Tap **"Add"** → Entry saved
@@ -127,19 +171,34 @@ Every feature is built around this core principle. No clutter. No complexity. Ju
 
 <div align="center">
 
-| Component        | Technology                 |
-|------------------|----------------------------|
-| **Language**     | Kotlin                     |
-| **UI Toolkit**   | Jetpack Compose            |
-| **Architecture** | MVVM                       |
-| **DI**           | Koin                       |
-| **Local DB**     | Room                       |
-| **Preferences**  | DataStore                  |
-| **Backup**       | Google Drive API + Sign-In |
-| **Concurrency**  | Coroutines + Flow          |
-| **Navigation**   | Navigation Compose         |
+| Component        | Technology                       |
+|------------------|----------------------------------|
+| **Language**     | Kotlin                           |
+| **UI Toolkit**   | Jetpack Compose (Material 3)     |
+| **Architecture** | MVVM                             |
+| **DI**           | Koin                             |
+| **Local DB**     | Room                             |
+| **Preferences**  | DataStore                        |
+| **Backup**       | Google Drive API + Google Sign-In |
+| **Concurrency**  | Coroutines + Flow                |
+| **Navigation**   | Navigation Compose               |
+| **Build System** | Gradle 8.x with version catalog  |
 
 </div>
+
+### Key Versions
+
+| Library                  | Version  |
+|--------------------------|----------|
+| Android Gradle Plugin    | `8.13.2` |
+| Kotlin                   | `2.0.21` |
+| Compose BOM              | `2025.05.00` |
+| Room                     | `2.7.1`  |
+| Koin                     | `4.0.4`  |
+| Navigation Compose       | `2.9.0`  |
+| DataStore Preferences    | `1.1.4`  |
+| compileSdk / targetSdk   | `36`     |
+| minSdk                   | `24`     |
 
 ---
 
@@ -177,24 +236,39 @@ graph TD
 ## 🚦 Getting Started
 
 ### Prerequisites
-- Android Studio Hedgehog | 2023.1.1 or later
-- JDK 17
-- Android SDK API 24+
+
+- **JDK 17** (required by Android Gradle Plugin 8.x)
+- **Android Studio Hedgehog (2023.1.1)** or newer
+- **Android SDK Platform 36** (compileSdk) and Build-Tools 36 — install via SDK Manager
+- A connected device or running emulator (API 24+)
 
 ### Clone & Build
 
 ```bash
 # Clone the repository
-git clone https://github.com/shahjalal-mahmud/amar-savings.git
+git clone https://github.com/shahjalal-mahmud/Amar_Savings.git
+cd Amar_Savings
+
+# Build a debug APK
+./gradlew assembleDebug
+
+# Install on a connected device / emulator
+./gradlew installDebug
 
 # Open in Android Studio
-cd amar-savings
+# File → Open → select the Amar_Savings directory
+```
 
-# Build the project
-./gradlew build
+> On Windows, use `gradlew.bat` instead of `./gradlew`.
 
-# Run on device/emulator
-./gradlew installDebug
+### Run Tests
+
+```bash
+# Unit tests
+./gradlew test
+
+# Instrumented tests (requires a connected device or emulator)
+./gradlew connectedAndroidTest
 ```
 
 ### Google Services Setup (for Backup)
@@ -209,52 +283,188 @@ cd amar-savings
 ## 📂 Project Structure
 
 ```
-app/
-├── src/main/java/com/amarsavings/
-│   ├── ui/              # Compose Screens
-│   │   ├── splash/
-│   │   ├── login/
-│   │   ├── dashboard/
-│   │   └── history/
-│   ├── data/            # Room DB & Models
-│   ├── di/              # Koin Modules
-│   ├── backup/          # Google Drive Integration
-│   └── utils/           # Helpers & Extensions
+Amar_Savings/
+├── .github/                              # GitHub config
+│   ├── ISSUE_TEMPLATE/                   # Bug report & feature request forms
+│   ├── workflows/build.yml               # Android CI
+│   └── PULL_REQUEST_TEMPLATE.md
+├── app/
+│   └── src/main/java/com/appriyo/amarsavings/
+│       ├── AmarSavingsApp.kt             # Application class — Koin init
+│       ├── MainActivity.kt               # Single-activity host
+│       ├── navigation/                   # Navigation Compose graph
+│       │   └── AppNavGraph.kt
+│       ├── data/
+│       │   ├── db/                       # Room entities, DAOs, AppDatabase, AppPreferences
+│       │   └── repository/
+│       │       └── SavingsRepository.kt  # Single source of truth
+│       ├── di/                           # Koin modules
+│       │   └── AppModule.kt
+│       ├── ui/
+│       │   ├── components/               # Reusable composables
+│       │   │                            # (TransactionItem, CashInputBottomSheet, GoalDialog)
+│       │   ├── dashboard/
+│       │   │   └── DashboardScreen.kt
+│       │   ├── history/
+│       │   │   └── HistoryScreen.kt
+│       │   └── theme/                    # Color, Theme, Type
+│       ├── util/
+│       │   └── Formatters.kt
+│       └── viewmodel/                    # DashboardViewModel, TransactionViewModel, HistoryViewModel
+├── build.gradle.kts                      # Root Gradle script
+├── settings.gradle.kts
+├── gradle/
+│   ├── libs.versions.toml                # Version catalog
+│   └── wrapper/                          # Gradle wrapper
+├── gradlew / gradlew.bat
+├── .gitattributes
+├── .gitignore
+├── LICENSE                               # MIT
+├── CHANGELOG.md
+├── CONTRIBUTING.md
+├── CODE_OF_CONDUCT.md
+├── SECURITY.md
+├── PRODUCT.md
+└── README.md
 ```
+
+---
+
+## 🗺️ Roadmap
+
+These are ideas being considered for upcoming releases. None are committed
+to a specific timeline — see the
+[issue tracker](https://github.com/shahjalal-mahmud/Amar_Savings/issues)
+for live progress and to suggest new items.
+
+- [ ] **Biometric lock** — require fingerprint / face unlock on app launch
+- [ ] **Recurring transactions** — schedule regular add / withdraw entries
+- [ ] **Multi-currency support** — track savings in foreign currencies alongside ৳
+- [ ] **Dashboard charts** — visualise monthly / weekly savings trends
+- [ ] **CSV export** — export transaction history to CSV
+- [ ] **In-app notifications** — gentle reminders to log transactions
+- [ ] **Encrypted local database** — opt-in SQLCipher support for sensitive data
+- [ ] **Widgets** — home-screen widget showing current balance
+- [ ] **Localisation** — Bengali (বাংলা) translations
+- [ ] **Automated dependency updates** — Dependabot / Renovate configuration
+
+Want to tackle one? Open an issue or a draft PR to discuss.
 
 ---
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please follow these steps:
+Contributions are welcome and appreciated! Whether you're fixing a typo,
+adding a feature, or reporting a bug, you're helping make the project
+better for everyone.
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit changes (`git commit -m 'Add AmazingFeature'`)
-4. Push to branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+Please read the full [CONTRIBUTING.md](CONTRIBUTING.md) guide before
+opening an issue or pull request. It covers:
+
+- Local setup and build instructions
+- Coding style and commit-message conventions
+- How to file bug reports and feature requests
+- How to submit a pull request
+
+Look for issues labelled
+[`good first issue`](https://github.com/shahjalal-mahmud/Amar_Savings/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
+if you're new to the codebase.
+
+---
+
+## 📜 Code of Conduct
+
+This project follows the
+[Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.md).
+By participating, you agree to abide by its terms.
+
+---
+
+## 🔒 Security
+
+**Please do not file security vulnerabilities as public issues.**
+
+To report a vulnerability, use
+[**GitHub private vulnerability reporting**](https://github.com/shahjalal-mahmud/Amar_Savings/security/advisories/new).
+See the full [Security Policy](SECURITY.md) for response timelines and
+disclosure policy.
+
+---
+
+## 💬 Support
+
+- 🐛 **Bug reports:** open a [Bug Report](https://github.com/shahjalal-mahmud/Amar_Savings/issues/new?template=bug_report.yml)
+- 💡 **Feature requests:** open a [Feature Request](https://github.com/shahjalal-mahmud/Amar_Savings/issues/new?template=feature_request.yml)
+- ❓ **Questions & ideas:** start a thread in
+  [GitHub Discussions](https://github.com/shahjalal-mahmud/Amar_Savings/discussions)
+
+---
+
+## 📝 Changelog
+
+Release notes are tracked in [CHANGELOG.md](CHANGELOG.md), following the
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format.
 
 ---
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the **MIT License** — see the
+[LICENSE](LICENSE) file for details.
+
+```
+MIT License
+
+Copyright (c) 2026 Amar Savings
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
 
 ---
 
 ## 🙏 Acknowledgments
 
-- Built with ❤️ for Bangladesh
+- Built with ❤️ for Bangladesh — সঞ্চয় করুন, স্বাধীন হন
 - Optimized for Taka currency denominations
 - Inspired by the need for simple, offline savings tracking
+
+This project is built on the shoulders of giants. Thanks to the open-source
+projects that make it possible:
+
+- [Kotlin](https://kotlinlang.org/) and [Kotlin Coroutines](https://github.com/Kotlin/kotlinx.coroutines)
+- [Jetpack Compose](https://developer.android.com/jetpack/compose) and [Material 3](https://m3.material.io/)
+- [AndroidX](https://developer.android.com/jetpack/androidx) libraries
+- [Room](https://developer.android.com/training/data-storage/room) persistence library
+- [Koin](https://insert-koin.io/) dependency injection
+- [Navigation Compose](https://developer.android.com/jetpack/compose/navigation)
+- [DataStore](https://developer.android.com/topic/libraries/architecture/datastore) preferences
+- [Google Sign-In](https://developers.google.com/identity/sign-in/android) and
+  [Google Drive API](https://developers.google.com/drive/api/guides/about-sdk)
 
 ---
 
 <div align="center">
   <p>Made with <span style="color: red;">❤️</span> for Bangladeshi savers</p>
   <p>
-    <a href="https://github.com/yourusername/amar-savings/issues">Report Bug</a> •
-    <a href="https://github.com/yourusername/amar-savings/issues">Request Feature</a>
+    <a href="https://github.com/shahjalal-mahmud/Amar_Savings/issues/new?template=bug_report.yml">Report Bug</a> •
+    <a href="https://github.com/shahjalal-mahmud/Amar_Savings/issues/new?template=feature_request.yml">Request Feature</a> •
+    <a href="https://github.com/shahjalal-mahmud/Amar_Savings/discussions">Discussions</a>
   </p>
   <p>
     <img src="https://img.icons8.com/color/48/bangladesh.png" alt="Bangladesh" width="30"/>
@@ -263,4 +473,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
     <em>Save, Become Independent</em>
   </p>
 </div>
-```
