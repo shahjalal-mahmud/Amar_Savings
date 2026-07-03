@@ -52,3 +52,14 @@ fun Long.smartFormatDate(): String = when {
 fun String.parseTakaAmount(): Long {
     return replace(",", "").replace("৳", "").trim().toLongOrNull() ?: 0L
 }
+
+/**
+ * Compact number formatting for tight UI labels (e.g. "+৳1.2K").
+ * Uses [Locale.US] so output is consistent regardless of device locale.
+ */
+fun Long.formatCompact(): String = when {
+    this >= 10_000_000 -> String.format(Locale.US, "%.1fCr", this / 10_000_000.0)
+    this >= 100_000 -> String.format(Locale.US, "%.1fL", this / 100_000.0)
+    this >= 1_000 -> String.format(Locale.US, "%.1fK", this / 1_000.0)
+    else -> this.toString()
+}
