@@ -45,9 +45,9 @@ class DriveBackupClient(
                 ?: error("No access token — sign in first")
             val multipart = buildMultipart(metadata, bytes)
             val url = if (existingId != null) {
-                BASE + "/files/" + existingId + "?uploadType=multipart&fields=id"
+                "$BASE/files/$existingId?uploadType=multipart&fields=id"
             } else {
-                BASE + "/files?uploadType=multipart&fields=id"
+                "$BASE/files?uploadType=multipart&fields=id"
             }
             val req = Request.Builder()
                 .url(url)
