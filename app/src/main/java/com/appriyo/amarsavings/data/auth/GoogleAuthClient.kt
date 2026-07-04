@@ -1,11 +1,11 @@
+@file:Suppress("DEPRECATION")
+
 package com.appriyo.amarsavings.data.auth
 
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
-import android.provider.ContactsContract
-import androidx.activity.result.ActivityResultLauncher
-import androidx.activity.result.IntentSenderRequest
 import com.appriyo.amarsavings.BuildConfig
 import com.google.android.gms.auth.api.identity.AuthorizationRequest
 import com.google.android.gms.auth.api.identity.AuthorizationResult
@@ -41,17 +41,17 @@ class GoogleAuthClient(private val context: Context) {
     @Volatile
     private var currentToken: String? = null
 
-    @Volatile
-    private var pendingDriveAccess: ((Intent?) -> Unit)? = null
-
-    fun hasFreshToken(): Boolean = currentToken != null
-
-    suspend fun getAccessToken(): String? = currentToken
+    /**
+     * Returns the cached Drive access token, or null if the user is not signed
+     * in (or the token has been cleared by sign-out). Read by [DriveBackupClient]
+     * on every Drive REST call.
+     */
+    fun getAccessToken(): String? = currentToken
 
     /** Returns a PendingIntent to launch the One Tap UI. */
     suspend fun beginSignIn(): android.app.PendingIntent {
         return suspendCancellableCoroutine { cont ->
-            ContactsContract.CommonDataKinds.Identity.getSignInClient(context)
+            Identity.getSignInClient(context)
                 .beginSignIn(buildSignInRequest())
                 .addOnSuccessListener { result -> cont.resume(result.pendingIntent) }
                 .addOnFailureListener { cont.resumeWithException(it) }
@@ -62,9 +62,12 @@ class GoogleAuthClient(private val context: Context) {
     suspend fun handleActivityResult(data: Intent?): SignInCredential? {
         if (data == null) return null
         return suspendCancellableCoroutine { cont ->
-            ContactsContract.CommonDataKinds.Identity.getSignInClient(context).getSignInCredentialFromIntent(data)
-                .addOnSuccessListener { cred -> cont.resume(cred) }
-                .addOnFailureListener { cont.resumeWithException(it) }
+            val signInClient = Identity.getSignInClient(context)
+            try {
+                cont.resume(signInClient.getSignInCredentialFromIntent(data))
+            } catch (t: Throwable) {
+                cont.resumeWithException(t)
+            }
         }
     }
 
@@ -95,7 +98,7 @@ class GoogleAuthClient(private val context: Context) {
      * to persist the profile before the Drive authorization step runs.
      */
     fun extractEmailFromIdToken(credential: SignInCredential): String? {
-        val idToken = credential.googleIdToken ?: credential.id ?: return credential.id
+        val idToken = credential.googleIdToken ?: credential.id
         // The JWT is `<header>.<payload>.<signature>` — we only need the payload.
         return runCatching {
             val parts = idToken.split('.')
@@ -107,7 +110,7 @@ class GoogleAuthClient(private val context: Context) {
     }
 
     /** Clears all in-memory tokens and revokes access on Google's servers. */
-    suspend fun signOut() {
+    fun signOut() {
         currentToken = null
         runCatching { Identity.getSignInClient(context).signOut() }
     }
@@ -135,6 +138,7 @@ class GoogleAuthClient(private val context: Context) {
  * (which need an Activity for UI flows) can use it. Set this from the
  * Activity's lifecycle and cleared on `onDispose` to avoid leaks.
  */
+@SuppressLint("StaticFieldLeak")
 internal object ActivityHolder {
     @Volatile
     var currentActivity: Activity? = null
@@ -142,15 +146,3 @@ internal object ActivityHolder {
     fun requireActivity(): Activity = currentActivity
         ?: error("ActivityHolder has no Activity — set it before sign-in")
 }
-
-/**
- * Holds the ActivityResultLauncher registered in MainActivity so the SignIn
- * VM can launch the Google One Tap PendingIntent.
- */
-internal class SignInLauncherHolder {
-    @Volatile
-    var launcher: ActivityResultLauncher<IntentSenderRequest>? = null
-}
-
-/** Singleton so the SignIn VM can hand off to MainActivity's launcher. */
-internal val signInLauncher = SignInLauncherHolder()
