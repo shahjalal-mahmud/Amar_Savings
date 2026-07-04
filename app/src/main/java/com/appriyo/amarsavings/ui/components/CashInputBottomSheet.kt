@@ -2,11 +2,19 @@ package com.appriyo.amarsavings.ui.components
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -23,20 +31,20 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.ArrowOutward
+import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -46,8 +54,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -56,7 +67,10 @@ import androidx.compose.ui.unit.sp
 import com.appriyo.amarsavings.data.db.DenominationInput
 import com.appriyo.amarsavings.data.db.TransactionType
 import com.appriyo.amarsavings.ui.theme.Coral400
+import com.appriyo.amarsavings.ui.theme.GradientHeroDark
+import com.appriyo.amarsavings.ui.theme.GradientHeroLight
 import com.appriyo.amarsavings.ui.theme.Indigo400
+import com.appriyo.amarsavings.ui.theme.Indigo500
 import com.appriyo.amarsavings.ui.theme.Mint400
 import com.appriyo.amarsavings.ui.theme.Violet400
 import com.appriyo.amarsavings.util.formatTaka
@@ -75,17 +89,13 @@ fun CashInputBottomSheet(
     onDismiss: () -> Unit
 ) {
     val isAdd = type == TransactionType.ADD
-    val accent = if (isAdd) Mint400 else Coral400
-    val secondaryAccent = if (isAdd) Indigo400 else Violet400
     val title = if (isAdd) "Add Cash" else "Withdraw Cash"
+    val subtitle = if (isAdd) "Add cash to your savings" else "Withdraw cash from savings"
     val actionLabel = if (isAdd) "Add to Savings" else "Confirm Withdraw"
+    val typeAccent = if (isAdd) Mint400 else Coral400
 
-    // Mint→Indigo for Add, Coral→Violet for Withdraw — used by both the hero
-    // header and the save button so they stay visually consistent.
-    val accentBrush = if (isAdd)
-        Brush.linearGradient(colors = listOf(Mint400, Indigo400))
-    else
-        Brush.linearGradient(colors = listOf(Coral400, Violet400))
+    val isDark = isDarkTheme()
+    val heroBrush = if (isDark) GradientHeroDark else GradientHeroLight
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -107,83 +117,15 @@ fun CashInputBottomSheet(
                 .fillMaxWidth()
                 .navigationBarsPadding()
         ) {
-            // ── Hero header ─────────────────────────────────────────────
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 8.dp)
-                    .clip(RoundedCornerShape(22.dp))
-                    .background(accentBrush)
-            ) {
-                val heroBlob = remember {
-                    Brush.radialGradient(
-                        colors = listOf(Color.White.copy(alpha = 0.30f), Color.Transparent)
-                    )
-                }
-                Box(
-                    modifier = Modifier
-                        .size(140.dp)
-                        .align(Alignment.TopEnd)
-                        .background(heroBlob)
-                )
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(20.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text(
-                                text = title,
-                                style = MaterialTheme.typography.titleLarge,
-                                color = Color.White,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = if (isAdd) "Add cash to your savings"
-                                else "Withdraw cash from savings",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = Color.White.copy(alpha = 0.85f)
-                            )
-                        }
-                        TextButton(onClick = onClearAll) {
-                            Text(
-                                text = "Clear",
-                                color = Color.White,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-                    }
-                    Spacer(Modifier.height(14.dp))
-                    Text(
-                        text = "Total ${if (isAdd) "to add" else "to withdraw"}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color.White.copy(alpha = 0.85f),
-                        fontWeight = FontWeight.SemiBold,
-                        letterSpacing = 1.sp
-                    )
-                    AnimatedContent(
-                        targetState = totalAmount.formatTaka(),
-                        transitionSpec = {
-                            (slideInVertically { it } + fadeIn()) togetherWith
-                                    (slideOutVertically { -it } + fadeOut())
-                        },
-                        label = "total-anim"
-                    ) { amount ->
-                        Text(
-                            text = amount,
-                            style = MaterialTheme.typography.displaySmall,
-                            fontWeight = FontWeight.Black,
-                            color = Color.White,
-                            letterSpacing = (-0.5).sp
-                        )
-                    }
-                }
-            }
+            // ── Hero header — matches Dashboard hero exactly ───────────
+            HeroHeader(
+                title = title,
+                subtitle = subtitle,
+                totalAmount = totalAmount,
+                typeAccent = typeAccent,
+                heroBrush = heroBrush,
+                onClearAll = onClearAll
+            )
 
             // ── Denomination list ───────────────────────────────────────
             Column(
@@ -191,20 +133,31 @@ fun CashInputBottomSheet(
                     .weight(1f, fill = false)
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 20.dp, vertical = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Text(
-                    text = "DENOMINATIONS",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontWeight = FontWeight.SemiBold,
-                    letterSpacing = 1.sp
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "DENOMINATIONS",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.SemiBold,
+                        letterSpacing = 1.2.sp
+                    )
+                    Text(
+                        text = "Tap notes to add",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+                Spacer(Modifier.height(2.dp))
                 denominations.forEach { denom ->
                     DenominationRow(
                         denomination = denom,
-                        accent = accent,
-                        secondaryAccent = secondaryAccent,
                         onIncrement = { onIncrement(denom.denomination) },
                         onDecrement = { onDecrement(denom.denomination) },
                         onQuantityChange = { onQuantityChange(denom.denomination, it) }
@@ -229,60 +182,261 @@ fun CashInputBottomSheet(
                     )
                     .padding(horizontal = 20.dp, vertical = 16.dp)
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp)
-                        .clip(RoundedCornerShape(18.dp))
-                        .background(accentBrush)
-                        .clickableNoRipple(enabled = totalAmount > 0, onClick = { onSave() })
-                        .border(1.dp, Color.White.copy(alpha = 0.20f), RoundedCornerShape(18.dp)),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    Icon(
-                        imageVector = if (isAdd) Icons.Rounded.Add else Icons.Rounded.ArrowOutward,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(Modifier.width(10.dp))
-                    Text(
-                        text = actionLabel,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color.White
-                    )
-                }
+                SaveActionButton(
+                    heroBrush = heroBrush,
+                    actionLabel = actionLabel,
+                    isAdd = isAdd,
+                    enabled = totalAmount > 0,
+                    onClick = { onSave() }
+                )
             }
         }
     }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+//  Hero header — exact same construction as DashboardScreen.HeroBalanceCard
+// ─────────────────────────────────────────────────────────────────────────────
+@Composable
+private fun HeroHeader(
+    title: String,
+    subtitle: String,
+    totalAmount: Long,
+    typeAccent: Color,
+    heroBrush: Brush,
+    onClearAll: () -> Unit
+) {
+    val transition = rememberInfiniteTransition(label = "sheet-shimmer")
+    val shimmerX by transition.animateFloat(
+        initialValue = -300f,
+        targetValue = 1200f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(4000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "sheet-shimmer-x"
+    )
+
+    val blobBrushA = remember {
+        Brush.radialGradient(
+            colors = listOf(Color.White.copy(alpha = 0.25f), Color.Transparent)
+        )
+    }
+    val blobBrushB = remember {
+        Brush.radialGradient(
+            colors = listOf(Violet400.copy(alpha = 0.35f), Color.Transparent)
+        )
+    }
+    val blobBrushAccent = remember(typeAccent) {
+        Brush.radialGradient(
+            colors = listOf(typeAccent.copy(alpha = 0.30f), Color.Transparent)
+        )
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 8.dp)
+            .clip(RoundedCornerShape(28.dp))
+            .background(heroBrush)
+    ) {
+        Canvas(modifier = Modifier.fillMaxWidth().height(180.dp)) {
+            val w = size.width
+            val h = size.height
+            drawCircle(
+                brush = blobBrushA,
+                radius = w * 0.55f,
+                center = Offset(w * 0.2f, h * 0.1f)
+            )
+            drawCircle(
+                brush = blobBrushB,
+                radius = w * 0.7f,
+                center = Offset(w * 0.9f, h * 0.85f)
+            )
+            drawCircle(
+                brush = blobBrushAccent,
+                radius = w * 0.4f,
+                center = Offset(w * 0.85f, h * 0.15f)
+            )
+            drawRect(
+                brush = Brush.linearGradient(
+                    colors = listOf(
+                        Color.Transparent,
+                        Color.White.copy(alpha = 0.10f),
+                        Color.Transparent
+                    ),
+                    start = Offset(shimmerX, 0f),
+                    end = Offset(shimmerX + 200f, h)
+                ),
+                topLeft = Offset(0f, 0f),
+                size = Size(w, h)
+            )
+        }
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(22.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.AutoAwesome,
+                        contentDescription = null,
+                        tint = Color.White.copy(alpha = 0.9f),
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Text(
+                        text = title.uppercase(),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White.copy(alpha = 0.95f),
+                        fontWeight = FontWeight.SemiBold,
+                        letterSpacing = 1.5.sp
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.18f))
+                        .border(1.dp, Color.White.copy(alpha = 0.25f), CircleShape)
+                        .clickableNoRipple(onClearAll)
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                ) {
+                    Text(
+                        text = "Clear",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(10.dp))
+
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.White.copy(alpha = 0.85f),
+                fontWeight = FontWeight.Medium
+            )
+
+            Spacer(Modifier.height(14.dp))
+
+            Text(
+                text = "TOTAL",
+                style = MaterialTheme.typography.labelSmall,
+                color = Color.White.copy(alpha = 0.75f),
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = 1.5.sp
+            )
+
+            Spacer(Modifier.height(4.dp))
+
+            AnimatedContent(
+                targetState = totalAmount,
+                transitionSpec = {
+                    (slideInVertically { it / 2 } + fadeIn()) togetherWith
+                            (slideOutVertically { -it / 2 } + fadeOut())
+                },
+                label = "total-anim"
+            ) { value ->
+                Text(
+                    text = value.formatTaka(),
+                    style = MaterialTheme.typography.displaySmall,
+                    fontWeight = FontWeight.Black,
+                    color = Color.White,
+                    letterSpacing = (-1).sp
+                )
+            }
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Denomination row — glass surface with subtle Indigo→Violet highlight
+// ─────────────────────────────────────────────────────────────────────────────
 @Composable
 private fun DenominationRow(
     denomination: DenominationInput,
-    accent: Color,
-    secondaryAccent: Color,
     onIncrement: () -> Unit,
     onDecrement: () -> Unit,
     onQuantityChange: (Int) -> Unit
 ) {
     val isActive = denomination.quantity > 0
+    val isDark = isDarkTheme()
+
     var textValue by remember(denomination.quantity) {
         mutableStateOf(if (denomination.quantity == 0) "" else denomination.quantity.toString())
     }
 
-    val surfaceVariant = MaterialTheme.colorScheme.surfaceVariant
-    val containerBrush = remember(isActive, accent, secondaryAccent, surfaceVariant) {
-        if (isActive) Brush.horizontalGradient(
-            colors = listOf(
-                accent.copy(alpha = 0.10f),
-                secondaryAccent.copy(alpha = 0.06f)
-            )
-        ) else {
+    val animatedActive by animateFloatAsState(
+        targetValue = if (isActive) 1f else 0f,
+        animationSpec = tween(durationMillis = 220),
+        label = "row-active"
+    )
+
+    val containerBrush = remember(isDark, animatedActive) {
+        if (isDark) {
             Brush.horizontalGradient(
-                colors = listOf(surfaceVariant.copy(alpha = 0.6f), surfaceVariant.copy(alpha = 0.4f))
+                colors = listOf(
+                    androidx.compose.ui.graphics.lerp(
+                        Color(0xFF1C2030),
+                        Indigo400.copy(alpha = 0.16f),
+                        animatedActive
+                    ),
+                    androidx.compose.ui.graphics.lerp(
+                        Color(0xFF161A26),
+                        Violet400.copy(alpha = 0.12f),
+                        animatedActive
+                    )
+                )
+            )
+        } else {
+            Brush.horizontalGradient(
+                colors = listOf(
+                    androidx.compose.ui.graphics.lerp(
+                        Color.White,
+                        Indigo400.copy(alpha = 0.10f),
+                        animatedActive
+                    ),
+                    androidx.compose.ui.graphics.lerp(
+                        Color(0xFFFBFBFD),
+                        Violet400.copy(alpha = 0.08f),
+                        animatedActive
+                    )
+                )
+            )
+        }
+    }
+
+    val borderBrush = remember(isDark, animatedActive) {
+        if (isActive) {
+            Brush.horizontalGradient(
+                colors = listOf(
+                    Indigo400.copy(alpha = 0.55f),
+                    Violet400.copy(alpha = 0.45f)
+                )
+            )
+        } else if (isDark) {
+            Brush.verticalGradient(
+                colors = listOf(
+                    Color.White.copy(alpha = 0.06f),
+                    Color.White.copy(alpha = 0.02f)
+                )
+            )
+        } else {
+            Brush.verticalGradient(
+                colors = listOf(
+                    Color.Black.copy(alpha = 0.06f),
+                    Color.Black.copy(alpha = 0.01f)
+                )
             )
         }
     }
@@ -290,58 +444,71 @@ private fun DenominationRow(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
+            .clip(RoundedCornerShape(16.dp))
             .background(containerBrush)
             .border(
                 width = if (isActive) 1.5.dp else 1.dp,
-                color = if (isActive) accent.copy(alpha = 0.45f)
-                else MaterialTheme.colorScheme.outlineVariant,
-                shape = RoundedCornerShape(14.dp)
+                brush = borderBrush,
+                shape = RoundedCornerShape(16.dp)
             )
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 10.dp),
+                .padding(horizontal = 14.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            // Note badge
+            // Note badge — pill style like dashboard QuickStat icon
             Box(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
+                    .clip(RoundedCornerShape(10.dp))
                     .background(
-                        if (isActive) accent.copy(alpha = 0.18f)
-                        else MaterialTheme.colorScheme.surfaceVariant
+                        if (isActive) Brush.horizontalGradient(
+                            colors = listOf(
+                                Indigo500.copy(alpha = 0.18f),
+                                Violet400.copy(alpha = 0.18f)
+                            )
+                        ) else Brush.horizontalGradient(
+                            colors = listOf(
+                                Indigo500.copy(alpha = 0.08f),
+                                Violet400.copy(alpha = 0.08f)
+                            )
+                        )
                     )
                     .border(
                         1.dp,
-                        if (isActive) accent.copy(alpha = 0.30f)
+                        if (isActive) Indigo400.copy(alpha = 0.45f)
                         else MaterialTheme.colorScheme.outlineVariant,
-                        RoundedCornerShape(8.dp)
+                        RoundedCornerShape(10.dp)
                     )
-                    .padding(horizontal = 10.dp, vertical = 6.dp)
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
             ) {
                 Text(
                     text = "৳${denomination.denomination}",
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.Bold,
-                    color = if (isActive) accent else MaterialTheme.colorScheme.onSurfaceVariant
+                    color = if (isActive) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
             Spacer(Modifier.weight(1f))
 
-            AnimatedVisibility(visible = isActive) {
+            AnimatedVisibility(
+                visible = isActive,
+                enter = fadeIn() + slideInVertically { -it / 2 },
+                exit = fadeOut() + slideOutVertically { -it / 2 }
+            ) {
                 Text(
                     text = "= ${denomination.subtotal.formatTaka()}",
                     style = MaterialTheme.typography.bodySmall,
-                    color = accent,
+                    color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.SemiBold
                 )
             }
 
-            Spacer(Modifier.width(4.dp))
+            Spacer(Modifier.width(2.dp))
 
             // Counter
             Row(
@@ -350,55 +517,146 @@ private fun DenominationRow(
             ) {
                 SmallIconButton(
                     onClick = onDecrement,
-                    enabled = denomination.quantity > 0,
-                    backgroundColor = MaterialTheme.colorScheme.surface,
-                    contentColor = if (denomination.quantity > 0) accent
-                    else MaterialTheme.colorScheme.outline
+                    enabled = denomination.quantity > 0
                 ) {
                     Icon(
                         Icons.Rounded.Remove,
                         contentDescription = "Decrement",
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(16.dp),
+                        tint = if (denomination.quantity > 0)
+                            MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.outline
                     )
                 }
 
-                OutlinedTextField(
+                CompactQuantityField(
                     value = textValue,
                     onValueChange = { v ->
                         val num = v.filter { it.isDigit() }
                         textValue = num
                         onQuantityChange(num.toIntOrNull() ?: 0)
                     },
-                    modifier = Modifier.width(60.dp),
-                    textStyle = MaterialTheme.typography.titleMedium.copy(
-                        textAlign = TextAlign.Center,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isActive) accent else MaterialTheme.colorScheme.onSurface
-                    ),
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = accent,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
-                        focusedContainerColor = MaterialTheme.colorScheme.surface,
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                        cursorColor = accent
-                    ),
-                    shape = RoundedCornerShape(10.dp)
+                    isActive = isActive
                 )
 
                 SmallIconButton(
                     onClick = onIncrement,
-                    backgroundColor = accent,
-                    contentColor = Color.White
+                    enabled = true,
+                    primary = true
                 ) {
                     Icon(
                         Icons.Rounded.Add,
                         contentDescription = "Increment",
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(16.dp),
+                        tint = Color.White
                     )
                 }
             }
+        }
+    }
+}
+
+/**
+ * Slim, fast quantity field — uses BasicTextField with no Material decoration
+ * for snappy, lag-free input on lower-end devices.
+ */
+@Composable
+private fun CompactQuantityField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    isActive: Boolean
+) {
+    val textColor = if (isActive) MaterialTheme.colorScheme.primary
+    else MaterialTheme.colorScheme.onSurface
+    val cursorColor = MaterialTheme.colorScheme.primary
+
+    Box(
+        modifier = Modifier
+            .width(56.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(MaterialTheme.colorScheme.surface)
+            .border(
+                1.dp,
+                if (isActive) MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)
+                else MaterialTheme.colorScheme.outlineVariant,
+                RoundedCornerShape(10.dp)
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        BasicTextField(
+            value = value,
+            onValueChange = onValueChange,
+            singleLine = true,
+            textStyle = LocalTextStyle.current.copy(
+                textAlign = TextAlign.Center,
+                fontWeight = FontWeight.Bold,
+                color = textColor
+            ),
+            cursorBrush = SolidColor(cursorColor),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp, horizontal = 6.dp)
+        )
+    }
+}
+
+/**
+ * Pill-shaped action button with a glass-tint on top of the brand gradient —
+ * matches the Dashboard's GoalCtaButton style.
+ */
+@Composable
+private fun SaveActionButton(
+    heroBrush: Brush,
+    actionLabel: String,
+    isAdd: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit
+) {
+    val animatedAlpha by animateFloatAsState(
+        targetValue = if (enabled) 1f else 0.45f,
+        animationSpec = tween(durationMillis = 180),
+        label = "save-alpha"
+    )
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(56.dp)
+            .clip(RoundedCornerShape(18.dp))
+            .background(heroBrush)
+            .border(1.dp, Color.White.copy(alpha = 0.25f), RoundedCornerShape(18.dp))
+            .clickableNoRipple(enabled = enabled, onClick = onClick)
+            .padding(horizontal = 16.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        // Subtle inner pill highlight, mirrors dashboard's white@0.18 pills
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp)
+                .clip(RoundedCornerShape(18.dp))
+                .background(Color.White.copy(alpha = 0.10f * animatedAlpha))
+        )
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(
+                imageVector = if (isAdd) Icons.Rounded.Add else Icons.Rounded.ArrowOutward,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(Modifier.width(10.dp))
+            Text(
+                text = actionLabel,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = Color.White
+            )
         }
     }
 }
@@ -407,18 +665,30 @@ private fun DenominationRow(
 private fun SmallIconButton(
     onClick: () -> Unit,
     enabled: Boolean = true,
-    backgroundColor: Color,
-    contentColor: Color,
+    primary: Boolean = false,
     content: @Composable () -> Unit
 ) {
+    val bgBrush = remember(primary) {
+        if (primary) Brush.horizontalGradient(colors = listOf(Indigo500, Violet400))
+        else null
+    }
+
     Box(
         modifier = Modifier
             .size(34.dp)
             .clip(RoundedCornerShape(10.dp))
-            .background(if (enabled) backgroundColor else backgroundColor.copy(alpha = 0.4f))
+            .then(
+                if (bgBrush != null) Modifier.background(bgBrush)
+                else Modifier.background(
+                    if (enabled) MaterialTheme.colorScheme.surface
+                    else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                )
+            )
             .border(
                 1.dp,
-                if (enabled) MaterialTheme.colorScheme.outlineVariant else Color.Transparent,
+                if (primary) Color.White.copy(alpha = 0.25f)
+                else if (enabled) MaterialTheme.colorScheme.outlineVariant
+                else Color.Transparent,
                 RoundedCornerShape(10.dp)
             )
             .clickableNoRipple(enabled = enabled, onClick = onClick),
