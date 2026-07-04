@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.appriyo.amarsavings.data.auth.AuthRepository
 import com.appriyo.amarsavings.data.auth.AuthState
 import com.appriyo.amarsavings.data.auth.GoogleAuthClient
+import com.appriyo.amarsavings.data.auth.humanReadableAuthError
 import com.appriyo.amarsavings.data.backup.BackupScheduler
 import com.appriyo.amarsavings.data.backup.RestoreOutcome
 import com.appriyo.amarsavings.data.db.AppPreferences
@@ -58,13 +59,31 @@ class SignInViewModel(
     fun handleOneTapResult(data: Intent?) {
         viewModelScope.launch {
             _pendingIntent.value = null
-            val credential = runCatching { client.handleActivityResult(data) }
-                .onFailure { /* handled below via Error state */ }
-                .getOrNull() ?: run {
-                    auth.broadcastError("Sign-in cancelled.")
-                    _inFlight.value = false
-                    return@launch
-                }
+
+            // data == null means the user dismissed the system account chooser —
+            // a real cancellation. Anything else is a parse failure from the
+            // Identity SDK (most commonly DEVELOPER_ERROR when the OAuth client
+            // is misconfigured), and we want to surface the real reason rather
+            // than the misleading "Sign-in cancelled." string.
+            if (data == null) {
+                auth.broadcastError("Sign-in cancelled.")
+                _inFlight.value = false
+                return@launch
+            }
+
+            val credential = try {
+                client.handleActivityResult(data)
+            } catch (t: Throwable) {
+                auth.broadcastError(humanReadableAuthError(t))
+                _inFlight.value = false
+                return@launch
+            }
+            if (credential == null) {
+                auth.broadcastError("Sign-in cancelled.")
+                _inFlight.value = false
+                return@launch
+            }
+
             val email = client.extractEmailFromIdToken(credential) ?: credential.id
             val displayName = credential.displayName
             val photoUrl = credential.profilePictureUri?.toString()

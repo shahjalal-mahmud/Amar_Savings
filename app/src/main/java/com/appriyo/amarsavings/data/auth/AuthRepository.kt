@@ -90,17 +90,25 @@ class AuthRepository(
         if (_state.value is AuthState.Error) _state.value = AuthState.SignedOut
     }
 
-    private fun humanReadable(t: Throwable): String {
-        return when (t) {
-            is ApiException -> when (t.statusCode) {
-                7 -> "Network error. Check your connection and try again."
-                10 -> "Developer error — please report this (code 10)."
-                12501 -> "Sign-in cancelled."
-                12502 -> "Sign-in already in progress."
-                16 -> "Account has too few scopes. Please sign in again."
-                else -> "Google Sign-In failed (code ${t.statusCode})."
-            }
-            else -> t.message ?: "Unknown sign-in error."
-        }
+    private fun humanReadable(t: Throwable): String = humanReadableAuthError(t)
+}
+
+/**
+ * Maps any [Throwable] thrown by the Google Identity Services APIs into a
+ * short, user-readable message. Used by [AuthRepository] for state transitions
+ * and by [SignInViewModel] to surface errors that would otherwise be swallowed
+ * (e.g. a DEVELOPER_ERROR from a misconfigured OAuth client previously showed
+ * up as the misleading "Sign-in cancelled").
+ */
+internal fun humanReadableAuthError(t: Throwable): String = when (t) {
+    is ApiException -> when (t.statusCode) {
+        7 -> "Network error. Check your connection and try again."
+        10 -> "Developer error — your Google Cloud OAuth client may be missing the SHA-1 fingerprint for this app (code 10)."
+        12501 -> "Sign-in cancelled."
+        12502 -> "Sign-in already in progress."
+        16 -> "Account has too few scopes. Please sign in again."
+        else -> "Google Sign-In failed (code ${t.statusCode})."
     }
+    else -> t.message ?: t::class.simpleName?.let { "Unknown sign-in error ($it)." }
+        ?: "Unknown sign-in error."
 }
