@@ -46,7 +46,9 @@ import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Flag
 import androidx.compose.material.icons.rounded.LightMode
 import androidx.compose.material.icons.rounded.Savings
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -71,9 +73,14 @@ import androidx.compose.ui.unit.sp
 import com.appriyo.amarsavings.data.db.NoteDistribution
 import com.appriyo.amarsavings.data.db.Transaction
 import com.appriyo.amarsavings.data.db.TransactionType
+import com.appriyo.amarsavings.data.auth.AuthRepository
+import com.appriyo.amarsavings.data.backup.BackupRepository
+import com.appriyo.amarsavings.data.backup.BackupScheduler
 import com.appriyo.amarsavings.ui.components.CashInputBottomSheet
+import com.appriyo.amarsavings.ui.components.CloudStatusChip
 import com.appriyo.amarsavings.ui.components.GlassCard
 import com.appriyo.amarsavings.ui.components.GoalDialog
+import com.appriyo.amarsavings.ui.components.SignInBanner
 import com.appriyo.amarsavings.ui.components.TransactionItem
 import com.appriyo.amarsavings.ui.components.clickableNoRipple
 import com.appriyo.amarsavings.ui.components.isDarkTheme
@@ -89,17 +96,27 @@ import com.appriyo.amarsavings.ui.theme.White
 import com.appriyo.amarsavings.util.formatTaka
 import com.appriyo.amarsavings.viewmodel.DashboardViewModel
 import com.appriyo.amarsavings.viewmodel.TransactionViewModel
+import org.koin.compose.koinInject
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
 fun DashboardScreen(
     onViewAll: () -> Unit,
-    onToggleTheme: () -> Unit
+    onToggleTheme: () -> Unit,
+    onOpenSettings: () -> Unit = {},
+    onOpenSignIn: () -> Unit = {}
 ) {
     val dashVm: DashboardViewModel = koinViewModel()
     val txVm: TransactionViewModel = koinViewModel()
+    val authRepo: AuthRepository = koinInject()
+    val backupRepo: BackupRepository = koinInject()
+    val scheduler: BackupScheduler = koinInject()
+
     val state by dashVm.uiState.collectAsState()
     val txState by txVm.state.collectAsState()
+    val authState by authRepo.state.collectAsState()
+    val backupState by backupRepo.state.collectAsState()
+    val isOnline by scheduler.online.collectAsState()
 
     var showGoalDialog by remember { mutableStateOf(false) }
     var showSheet by remember { mutableStateOf(false) }
@@ -137,7 +154,20 @@ fun DashboardScreen(
                 .padding(bottom = 100.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            TopHeader(onToggleTheme = onToggleTheme)
+            TopHeader(
+                onToggleTheme = onToggleTheme,
+                onOpenSettings = onOpenSettings,
+                authState = authState,
+                backupState = backupState,
+                online = isOnline,
+                onChipClick = {
+                    if (authState is com.appriyo.amarsavings.data.auth.AuthState.SignedIn) {
+                        onOpenSettings()
+                    } else {
+                        onOpenSignIn()
+                    }
+                }
+            )
 
             HeroBalanceCard(
                 totalSaved = state.totalSaved,
@@ -148,6 +178,14 @@ fun DashboardScreen(
                 onEditGoal = { showGoalDialog = true },
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
+
+            // Show the SignIn banner only when the user is signed out.
+            if (authState !is com.appriyo.amarsavings.data.auth.AuthState.SignedIn) {
+                SignInBanner(
+                    onSignInClick = onOpenSignIn,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+            }
 
             QuickStatsRow(
                 totalSaved = state.totalSaved,
@@ -199,7 +237,14 @@ fun DashboardScreen(
 }
 
 @Composable
-private fun TopHeader(onToggleTheme: () -> Unit) {
+private fun TopHeader(
+    onToggleTheme: () -> Unit,
+    onOpenSettings: () -> Unit,
+    authState: com.appriyo.amarsavings.data.auth.AuthState,
+    backupState: com.appriyo.amarsavings.data.backup.BackupState,
+    online: Boolean,
+    onChipClick: () -> Unit
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -219,7 +264,28 @@ private fun TopHeader(onToggleTheme: () -> Unit) {
                 style = MaterialTheme.typography.headlineMedium
             )
         }
-        ThemeToggleButton(onClick = onToggleTheme)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            CloudStatusChip(
+                authState = authState,
+                backupState = backupState,
+                online = online,
+                onClick = onChipClick
+            )
+            Spacer(Modifier.width(8.dp))
+            ThemeToggleButton(onClick = onToggleTheme)
+            Spacer(Modifier.width(4.dp))
+            SettingsButton(onClick = onOpenSettings)
+        }
+    }
+}
+
+@Composable
+private fun SettingsButton(onClick: () -> Unit) {
+    IconButton(onClick = onClick) {
+        Icon(
+            imageVector = Icons.Rounded.Settings,
+            contentDescription = "Settings"
+        )
     }
 }
 
