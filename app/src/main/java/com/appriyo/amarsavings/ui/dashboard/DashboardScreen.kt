@@ -16,7 +16,6 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -66,6 +65,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -412,35 +412,44 @@ private fun HeroBalanceCard(
             .fillMaxWidth()
             .clip(RoundedCornerShape(28.dp))
             .background(heroBrush)
-    ) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val w = size.width
-            val h = size.height
-            drawCircle(
-                brush = blobBrushA,
-                radius = w * 0.55f,
-                center = Offset(w * 0.2f, h * 0.1f)
-            )
-            drawCircle(
-                brush = blobBrushB,
-                radius = w * 0.7f,
-                center = Offset(w * 0.9f, h * 0.85f)
-            )
-            drawRect(
-                brush = Brush.linearGradient(
-                    colors = listOf(
-                        Color.Transparent,
-                        Color.White.copy(alpha = 0.10f),
-                        Color.Transparent
+            // drawBehind runs after layout, so `size` here is the resolved Box
+            // size (including the Column content's height). A standalone
+            // Canvas(fillMaxSize) child inside this Box would not size
+            // correctly when the parent is a verticalScroll — its measured
+            // height collapses to ~0 because the Box's other children
+            // (the Column) report unbounded heights during measure, leaving
+            // the Canvas with no concrete size to draw the blobs/shimmer
+            // against. Attaching the draw block to the Box itself sidesteps
+            // the timing issue and guarantees the gradient + shimmer render
+            // at the card's full intended dimensions.
+            .drawBehind {
+                val w = size.width
+                val h = size.height
+                drawCircle(
+                    brush = blobBrushA,
+                    radius = w * 0.55f,
+                    center = Offset(w * 0.2f, h * 0.1f)
+                )
+                drawCircle(
+                    brush = blobBrushB,
+                    radius = w * 0.7f,
+                    center = Offset(w * 0.9f, h * 0.85f)
+                )
+                drawRect(
+                    brush = Brush.linearGradient(
+                        colors = listOf(
+                            Color.Transparent,
+                            Color.White.copy(alpha = 0.10f),
+                            Color.Transparent
+                        ),
+                        start = Offset(shimmerX, 0f),
+                        end = Offset(shimmerX + 200f, h)
                     ),
-                    start = Offset(shimmerX, 0f),
-                    end = Offset(shimmerX + 200f, h)
-                ),
-                topLeft = Offset(0f, 0f),
-                size = Size(w, h)
-            )
-        }
-
+                    topLeft = Offset(0f, 0f),
+                    size = Size(w, h)
+                )
+            }
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
