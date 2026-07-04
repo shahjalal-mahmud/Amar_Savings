@@ -6,6 +6,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.ksp)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 // Load release signing credentials from keystore.properties at the project root.
@@ -30,6 +31,12 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // Google OAuth Web Client ID, sourced from local.properties (which is gitignored).
+        // The value is a *public* identifier (per Google docs) and is safe to ship in BuildConfig.
+        val googleOAuthClientId: String = (project.findProperty("GOOGLE_OAUTH_CLIENT_ID") as String?)
+            ?: "REPLACE_WITH_YOUR_WEB_CLIENT_ID.apps.googleusercontent.com"
+        buildConfigField("String", "GOOGLE_OAUTH_CLIENT_ID", "\"$googleOAuthClientId\"")
     }
 
     signingConfigs {
@@ -67,6 +74,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -74,6 +82,7 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.lifecycle.process)
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
@@ -94,6 +103,15 @@ dependencies {
     // Koin
     implementation(libs.koin.android)
     implementation(libs.koin.androidx.compose)
+
+    // Google Sign-In
+    implementation(libs.play.services.auth)
+
+    // OkHttp (for Drive REST calls)
+    implementation(libs.okhttp)
+
+    // Kotlinx serialization (for backup JSON)
+    implementation(libs.kotlinx.serialization.json)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
