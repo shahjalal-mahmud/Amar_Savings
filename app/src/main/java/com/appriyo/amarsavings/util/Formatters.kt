@@ -63,3 +63,30 @@ fun Long.formatCompact(): String = when {
     this >= 1_000 -> String.format(Locale.US, "%.1fK", this / 1_000.0)
     else -> this.toString()
 }
+
+/**
+ * Human-friendly relative time used by sync UIs ("just now", "5 min ago",
+ * "yesterday", or a short date for older timestamps).
+ */
+fun formatRelativeTime(timestampMs: Long): String {
+    if (timestampMs <= 0L) return "never"
+    val now = System.currentTimeMillis()
+    val delta = now - timestampMs
+    val seconds = delta / 1000
+    val minutes = seconds / 60
+    val hours = minutes / 60
+    val days = hours / 24
+    return when {
+        delta < 0 -> "in the future"
+        seconds < 30 -> "just now"
+        minutes < 1 -> "$seconds sec ago"
+        minutes < 60 -> "$minutes min ago"
+        hours < 24 -> "$hours hr ago"
+        days == 1L -> "yesterday"
+        days < 7 -> "$days days ago"
+        else -> {
+            val sdf = SimpleDateFormat("MMM dd", Locale.getDefault())
+            sdf.format(Date(timestampMs))
+        }
+    }
+}
