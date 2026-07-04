@@ -44,6 +44,26 @@ interface TransactionDao {
 
     @Query("SELECT * FROM transactions WHERE id = :id")
     suspend fun getById(id: Long): Transaction?
+
+    // ── Restore / backup helpers ───────────────────────────────────────────
+
+    @Query("SELECT * FROM transactions ORDER BY timestamp DESC")
+    suspend fun getAllOnce(): List<Transaction>
+
+    @Query("SELECT COUNT(*) FROM transactions")
+    suspend fun count(): Int
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(transactions: List<Transaction>): List<Long>
+
+    @Query("DELETE FROM transactions")
+    suspend fun deleteAll()
+
+    @androidx.room.Transaction
+    suspend fun replaceAll(transactions: List<Transaction>) {
+        deleteAll()
+        if (transactions.isNotEmpty()) insertAll(transactions)
+    }
 }
 
 data class NoteDistribution(
