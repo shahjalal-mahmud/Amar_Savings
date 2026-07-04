@@ -31,3 +31,15 @@
 -keepclasseswithmembers class com.appriyo.amarsavings.** {
     kotlinx.serialization.KSerializer serializer(...);
 }
+
+# ─── Google Sign-In (play-services-auth) ──────────────────────────────────
+# The library reflects on several Identity / AuthorizationClient / Tasks
+# classes at runtime. Without these keep rules R8 obfuscates or strips them
+# in the release build and the One Tap / AuthorizationClient calls silently
+# fail — the sign-in button stays in "Connecting…" forever.
+-keep class com.google.android.gms.auth.api.** { *; }
+-keep class com.google.android.gms.auth.** { *; }
+-keep class com.google.android.gms.common.api.** { *; }
+-keep class com.google.android.gms.tasks.** { *; }
+-dontwarn com.google.android.gms.auth.**
+-dontwarn com.google.android.gms.common.**
