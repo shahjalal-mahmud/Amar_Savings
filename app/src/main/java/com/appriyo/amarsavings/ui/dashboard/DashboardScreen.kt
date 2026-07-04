@@ -41,6 +41,9 @@ import androidx.compose.material.icons.rounded.ArrowOutward
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.CloudDone
+import androidx.compose.material.icons.rounded.CloudOff
+import androidx.compose.material.icons.rounded.CloudSync
 import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Flag
@@ -77,20 +80,23 @@ import com.appriyo.amarsavings.data.auth.AuthRepository
 import com.appriyo.amarsavings.data.backup.BackupRepository
 import com.appriyo.amarsavings.data.backup.BackupScheduler
 import com.appriyo.amarsavings.ui.components.CashInputBottomSheet
-import com.appriyo.amarsavings.ui.components.CloudStatusChip
 import com.appriyo.amarsavings.ui.components.GlassCard
 import com.appriyo.amarsavings.ui.components.GoalDialog
+import com.appriyo.amarsavings.ui.components.PulsingDot
 import com.appriyo.amarsavings.ui.components.SignInBanner
 import com.appriyo.amarsavings.ui.components.TransactionItem
 import com.appriyo.amarsavings.ui.components.clickableNoRipple
 import com.appriyo.amarsavings.ui.components.isDarkTheme
 import com.appriyo.amarsavings.ui.theme.Amber400
+import com.appriyo.amarsavings.ui.theme.Amber500
 import com.appriyo.amarsavings.ui.theme.Coral400
+import com.appriyo.amarsavings.ui.theme.Coral500
 import com.appriyo.amarsavings.ui.theme.GradientHeroDark
 import com.appriyo.amarsavings.ui.theme.GradientHeroLight
 import com.appriyo.amarsavings.ui.theme.Indigo400
 import com.appriyo.amarsavings.ui.theme.Indigo500
 import com.appriyo.amarsavings.ui.theme.Mint400
+import com.appriyo.amarsavings.ui.theme.Mint500
 import com.appriyo.amarsavings.ui.theme.Violet400
 import com.appriyo.amarsavings.ui.theme.White
 import com.appriyo.amarsavings.util.formatTaka
@@ -157,16 +163,10 @@ fun DashboardScreen(
             TopHeader(
                 onToggleTheme = onToggleTheme,
                 onOpenSettings = onOpenSettings,
+                onOpenSignIn = onOpenSignIn,
                 authState = authState,
                 backupState = backupState,
-                online = isOnline,
-                onChipClick = {
-                    if (authState is com.appriyo.amarsavings.data.auth.AuthState.SignedIn) {
-                        onOpenSettings()
-                    } else {
-                        onOpenSignIn()
-                    }
-                }
+                online = isOnline
             )
 
             HeroBalanceCard(
@@ -179,14 +179,6 @@ fun DashboardScreen(
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
 
-            // Show the SignIn banner only when the user is signed out.
-            if (authState !is com.appriyo.amarsavings.data.auth.AuthState.SignedIn) {
-                SignInBanner(
-                    onSignInClick = onOpenSignIn,
-                    modifier = Modifier.padding(horizontal = 16.dp)
-                )
-            }
-
             QuickStatsRow(
                 totalSaved = state.totalSaved,
                 goal = state.goal,
@@ -197,6 +189,14 @@ fun DashboardScreen(
             if (state.noteDistribution.totalNotes() > 0) {
                 CashAnalyticsCard(
                     distribution = state.noteDistribution,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+            }
+
+            // Show the SignIn banner only when the user is signed out.
+            if (authState !is com.appriyo.amarsavings.data.auth.AuthState.SignedIn) {
+                SignInBanner(
+                    onSignInClick = onOpenSignIn,
                     modifier = Modifier.padding(horizontal = 16.dp)
                 )
             }
@@ -240,10 +240,10 @@ fun DashboardScreen(
 private fun TopHeader(
     onToggleTheme: () -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenSignIn: () -> Unit,
     authState: com.appriyo.amarsavings.data.auth.AuthState,
     backupState: com.appriyo.amarsavings.data.backup.BackupState,
-    online: Boolean,
-    onChipClick: () -> Unit
+    online: Boolean
 ) {
     Row(
         modifier = Modifier
@@ -265,15 +265,21 @@ private fun TopHeader(
             )
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
-            CloudStatusChip(
+            BackupStatusIcon(
                 authState = authState,
                 backupState = backupState,
                 online = online,
-                onClick = onChipClick
+                onClick = {
+                    if (authState is com.appriyo.amarsavings.data.auth.AuthState.SignedIn) {
+                        onOpenSettings()
+                    } else {
+                        onOpenSignIn()
+                    }
+                }
             )
             Spacer(Modifier.width(8.dp))
             ThemeToggleButton(onClick = onToggleTheme)
-            Spacer(Modifier.width(4.dp))
+            Spacer(Modifier.width(8.dp))
             SettingsButton(onClick = onOpenSettings)
         }
     }
@@ -288,6 +294,82 @@ private fun SettingsButton(onClick: () -> Unit) {
         )
     }
 }
+
+/**
+ * Compact icon-only backup indicator for the dashboard top bar.
+ *
+ * Visually identical to [ThemeToggleButton] (a 42 dp circular pill) so the
+ * three right-aligned icons sit on a consistent baseline, but the icon and
+ * tint change with the user's Google Drive backup state:
+ *   - Signed-out / failed / not-enabled → red [Icons.Rounded.CloudOff]
+ *   - Signed-in & synced / ready        → green [Icons.Rounded.CloudDone]
+ *   - Syncing                            → amber [Icons.Rounded.CloudSync] w/ pulse
+ *   - Offline (signed-in)                → neutral grey [Icons.Rounded.CloudOff]
+ */
+@Composable
+private fun BackupStatusIcon(
+    authState: com.appriyo.amarsavings.data.auth.AuthState,
+    backupState: com.appriyo.amarsavings.data.backup.BackupState,
+    online: Boolean,
+    onClick: () -> Unit
+) {
+    val isDark = isDarkTheme()
+    val (icon, tint, bgAlpha, contentDescription) = when {
+        // Backup is off (no auth or auth failed) → red cross.
+        authState !is com.appriyo.amarsavings.data.auth.AuthState.SignedIn ->
+            BackupIconSpec(Icons.Rounded.CloudOff, Coral500, 0.18f, "Backup off")
+        backupState is com.appriyo.amarsavings.data.backup.BackupState.Failed ->
+            BackupIconSpec(Icons.Rounded.CloudOff, Coral500, 0.18f, "Backup failed")
+        backupState is com.appriyo.amarsavings.data.backup.BackupState.Syncing ->
+            BackupIconSpec(Icons.Rounded.CloudSync, Amber500, 0.18f, "Backing up")
+        // Backup is on and good → green.
+        backupState is com.appriyo.amarsavings.data.backup.BackupState.SyncedAt ->
+            BackupIconSpec(Icons.Rounded.CloudDone, Mint500, 0.18f, "Backed up")
+        // Offline (signed-in, no network) → neutral, not an alarm.
+        !online ->
+            BackupIconSpec(Icons.Rounded.CloudOff, MaterialTheme.colorScheme.onSurfaceVariant, 0.18f, "Offline")
+        // Signed-in default / Idle → treat as "ready / protected".
+        else ->
+            BackupIconSpec(Icons.Rounded.CloudDone, Mint500, 0.18f, "Backup ready")
+    }
+    val baseTint = if (isDark) {
+        tint.copy(alpha = (tint.alpha * 0.55f + 0.45f).coerceAtMost(1f))
+    } else tint
+
+    Box(
+        modifier = Modifier
+            .size(42.dp)
+            .clip(CircleShape)
+            .background(baseTint.copy(alpha = bgAlpha))
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)
+            .clickableNoRipple(onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = baseTint,
+            modifier = Modifier.size(20.dp)
+        )
+        // Tiny amber dot in the corner while syncing, reusing the existing
+        // PulsingDot component from CloudStatusChip.kt.
+        if (backupState is com.appriyo.amarsavings.data.backup.BackupState.Syncing) {
+            PulsingDot(
+                color = Amber500,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = 6.dp, end = 6.dp)
+            )
+        }
+    }
+}
+
+private data class BackupIconSpec(
+    val icon: androidx.compose.ui.graphics.vector.ImageVector,
+    val tint: Color,
+    val bgAlpha: Float,
+    val contentDescription: String
+)
 
 @Composable
 private fun HeroBalanceCard(
