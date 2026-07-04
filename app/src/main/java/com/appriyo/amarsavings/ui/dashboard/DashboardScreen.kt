@@ -179,6 +179,14 @@ fun DashboardScreen(
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
 
+            // Show the SignIn banner only when the user is signed out.
+            if (authState !is com.appriyo.amarsavings.data.auth.AuthState.SignedIn) {
+                SignInBanner(
+                    onSignInClick = onOpenSignIn,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+            }
+
             QuickStatsRow(
                 totalSaved = state.totalSaved,
                 goal = state.goal,
@@ -189,14 +197,6 @@ fun DashboardScreen(
             if (state.noteDistribution.totalNotes() > 0) {
                 CashAnalyticsCard(
                     distribution = state.noteDistribution,
-                    modifier = Modifier.padding(horizontal = 16.dp)
-                )
-            }
-
-            // Show the SignIn banner only when the user is signed out.
-            if (authState !is com.appriyo.amarsavings.data.auth.AuthState.SignedIn) {
-                SignInBanner(
-                    onSignInClick = onOpenSignIn,
                     modifier = Modifier.padding(horizontal = 16.dp)
                 )
             }
