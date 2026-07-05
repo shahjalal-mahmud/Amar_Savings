@@ -44,13 +44,18 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -97,9 +102,51 @@ fun CashInputBottomSheet(
     val isDark = isDarkTheme()
     val heroBrush = if (isDark) GradientHeroDark else GradientHeroLight
 
+    // ── Anti-accidental-dismissal state ──────────────────────────────────
+    // The sheet's drag-to-close gesture is intentionally very forgiving by
+    // default, which means a small downward flick or an accidental scrim
+    // tap immediately closes it. We add two guards so a stray touch can
+    // never dismiss the sheet:
+    //
+    //  1. `confirmValueChange` refuses to transition to SheetValue.Hidden
+    //     from a drag — the sheet physically cannot collapse on its own.
+    //  2. `onDismissRequest` (scrim tap / back press) is debounced for the
+    //     first ~300 ms after the sheet opens, and between consecutive
+    //     dismiss attempts, so accidental taps are ignored.
+    //
+    // The deliberate close paths (scrim tap after the debounce window, and
+    // the back button) still trigger `sheetState.hide()` to animate the
+    // sheet out cleanly before the parent removes it from composition.
+    val sheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = true,
+        confirmValueChange = { newValue ->
+            // Allow staying open or re-expanding; never allow an implicit
+            // collapse via a small swipe. Dismissal is gated to the
+            // `onDismissRequest` path below (scrim tap / back press).
+            newValue != SheetValue.Hidden
+        }
+    )
+    val sheetScope = rememberCoroutineScope()
+
+    var lastDismissAllowedAtMs by remember { mutableLongStateOf(0L) }
+    LaunchedEffect(Unit) {
+        // Allow the first real dismiss ~300 ms after the sheet has opened.
+        lastDismissAllowedAtMs = System.currentTimeMillis() + 300L
+    }
+
     ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        onDismissRequest = {
+            val now = System.currentTimeMillis()
+            if (now >= lastDismissAllowedAtMs) {
+                // Prevent a rapid burst of dismiss attempts from registering.
+                lastDismissAllowedAtMs = now + 500L
+                // Animate the sheet out smoothly before the parent removes it.
+                sheetScope.launch { sheetState.hide() }
+                onDismiss()
+            }
+            // else: ignore — accidental scrim tap within the debounce window.
+        },
+        sheetState = sheetState,
         containerColor = MaterialTheme.colorScheme.surface,
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
         dragHandle = {
