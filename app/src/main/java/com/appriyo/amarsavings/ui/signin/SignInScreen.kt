@@ -83,6 +83,20 @@ fun SignInScreen(
         viewModel.handleOneTapResult(result.data)
     }
 
+    val driveConsentIntent by viewModel.driveConsentIntent.collectAsState()
+
+    val driveConsentLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        viewModel.handleDriveConsentResult(result.data)
+    }
+
+    LaunchedEffect(driveConsentIntent) {
+        val pi = driveConsentIntent ?: return@LaunchedEffect
+        driveConsentLauncher.launch(IntentSenderRequest.Builder(pi.intentSender).build())
+        viewModel.clearDriveConsentIntent()
+    }
+
     // Whenever the VM produces a PendingIntent, launch it.
     LaunchedEffect(pendingIntent) {
         val pi: PendingIntent = pendingIntent ?: return@LaunchedEffect

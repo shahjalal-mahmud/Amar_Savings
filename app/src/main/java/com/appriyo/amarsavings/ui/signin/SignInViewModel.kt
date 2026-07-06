@@ -13,7 +13,6 @@ import com.appriyo.amarsavings.data.db.AppPreferences
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /**
@@ -25,7 +24,10 @@ import kotlinx.coroutines.launch
  *      [androidx.activity.result.ActivityResultLauncher].
  *   2. The launcher result is forwarded into [handleOneTapResult] which
  *      extracts the profile, persists it, and calls Drive authorization.
- *   3. On success, state becomes [AuthState.Restoring] and the UI navigates
+ *   3. If the user hasn't yet granted the `drive.appdata` scope,
+ *      [AuthRepository.driveConsentIntent] emits a PendingIntent the UI must
+ *      launch; its result is forwarded into [handleDriveConsentResult].
+ *   4. On success, state becomes [AuthState.Restoring] and the UI navigates
  *      to the dedicated restore loader (driven by [AuthRepository.state]).
  */
 class SignInViewModel(
@@ -44,6 +46,8 @@ class SignInViewModel(
     private val _pendingIntent = MutableStateFlow<android.app.PendingIntent?>(null)
     val pendingIntent: StateFlow<android.app.PendingIntent?> = _pendingIntent.asStateFlow()
 
+    val driveConsentIntent: StateFlow<android.app.PendingIntent?> = auth.driveConsentIntent
+
     /** Step 1: start One Tap. Caller must observe [pendingIntent] and launch it. */
     fun beginOneTap() {
         if (_inFlight.value) return
@@ -51,7 +55,7 @@ class SignInViewModel(
             _inFlight.value = true
             runCatching { client.beginSignIn() }
                 .onSuccess { _pendingIntent.value = it }
-                .onFailure { auth.state.let { /* swallow; signIn reports it */ } }
+                .onFailure { t -> auth.broadcastError(humanReadableAuthError(t)) }
         }
     }
 
@@ -87,17 +91,22 @@ class SignInViewModel(
             val email = client.extractEmailFromIdToken(credential) ?: credential.id
             val displayName = credential.displayName
             val photoUrl = credential.profilePictureUri?.toString()
-            if (email == null) {
-                auth.broadcastError("Could not read your Google account email.")
-                _inFlight.value = false
-                return@launch
-            }
             prefs.setUserProfile(email, displayName, photoUrl)
-            // Now request drive.appdata authorization and flip state.
+            // Now request drive.appdata authorization and flip state
+            // (or, if consent is needed, emit driveConsentIntent for the UI).
             auth.signInWithCachedActivity()
             _inFlight.value = false
         }
     }
+
+    /** Step 3b: the Drive consent UI (launched from [driveConsentIntent]) returned a result. */
+    fun handleDriveConsentResult(data: Intent?) {
+        viewModelScope.launch {
+            auth.handleDriveConsentResult(data)
+        }
+    }
+
+    fun clearDriveConsentIntent() = auth.clearDriveConsentIntent()
 
     fun clearPendingIntent() { _pendingIntent.value = null }
 

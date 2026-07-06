@@ -1,5 +1,6 @@
 package com.appriyo.amarsavings.data.auth
 
+import android.content.Intent
 import com.appriyo.amarsavings.data.db.AppPreferences
 import com.google.android.gms.common.api.ApiException
 import kotlinx.coroutines.CoroutineScope
@@ -26,6 +27,8 @@ class AuthRepository(
 
     private val _state = MutableStateFlow<AuthState>(AuthState.SignedOut)
     val state: StateFlow<AuthState> = _state.asStateFlow()
+    private val _driveConsentIntent = MutableStateFlow<android.app.PendingIntent?>(null)
+    val driveConsentIntent: StateFlow<android.app.PendingIntent?> = _driveConsentIntent.asStateFlow()
 
     init {
         // Re-hydrate from persistent storage on construction.
@@ -48,15 +51,31 @@ class AuthRepository(
      */
     suspend fun signInWithCachedActivity() {
         runCatching {
-            client.authorizeDriveAccess()
-            val email = prefs.userEmail.first()
-                ?: throw IllegalStateException("Sign-in completed but no profile stored")
-            val displayName = prefs.userDisplayName.first()
-            _state.value = AuthState.Restoring(email, displayName)
-        }.onFailure { t ->
-            _state.value = AuthState.Error(humanReadable(t))
-        }
+            when (val outcome = client.authorizeDriveAccess()) {
+                is GoogleAuthClient.DriveAuthOutcome.NeedsResolution -> {
+                    _driveConsentIntent.value = outcome.pendingIntent
+                }
+                is GoogleAuthClient.DriveAuthOutcome.Authorized -> completeSignIn()
+            }
+        }.onFailure { t -> _state.value = AuthState.Error(humanReadable(t)) }
     }
+
+    suspend fun handleDriveConsentResult(data: Intent?) {
+        _driveConsentIntent.value = null
+        runCatching {
+            client.completeDriveAuthorization(data)
+            completeSignIn()
+        }.onFailure { t -> _state.value = AuthState.Error(humanReadable(t)) }
+    }
+
+    private suspend fun completeSignIn() {
+        val email = prefs.userEmail.first()
+            ?: throw IllegalStateException("Sign-in completed but no profile stored")
+        val displayName = prefs.userDisplayName.first()
+        _state.value = AuthState.Restoring(email, displayName)
+    }
+
+    fun clearDriveConsentIntent() { _driveConsentIntent.value = null }
 
     /** Emit an error without touching the Drive auth path (used by VM). */
     fun broadcastError(message: String) {

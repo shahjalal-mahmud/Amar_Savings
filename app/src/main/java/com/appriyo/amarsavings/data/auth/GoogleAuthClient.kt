@@ -71,13 +71,12 @@ class GoogleAuthClient(private val context: Context) {
         }
     }
 
-    /**
-     * Exchanges the just-obtained profile for an Authorization with the
-     * `drive.appdata` scope so we can call the Drive REST API. If the user
-     * has previously granted the scope and the token is still valid, the
-     * cached authorization is returned without UI.
-     */
-    suspend fun authorizeDriveAccess(): AuthorizationResult {
+    sealed class DriveAuthOutcome {
+        data class Authorized(val result: AuthorizationResult) : DriveAuthOutcome()
+        data class NeedsResolution(val pendingIntent: android.app.PendingIntent) : DriveAuthOutcome()
+    }
+
+    suspend fun authorizeDriveAccess(): DriveAuthOutcome {
         ActivityHolder.requireActivity()
         val request = AuthorizationRequest.builder()
             .setRequestedScopes(listOf(Scope(DRIVE_APP_DATA_SCOPE)))
@@ -89,6 +88,19 @@ class GoogleAuthClient(private val context: Context) {
                 .addOnSuccessListener { cont.resume(it) }
                 .addOnFailureListener { cont.resumeWithException(it) }
         }
+        return if (result.hasResolution()) {
+            DriveAuthOutcome.NeedsResolution(result.pendingIntent!!)
+        } else {
+            currentToken = result.accessToken
+            DriveAuthOutcome.Authorized(result)
+        }
+    }
+
+    /** Called after the consent UI (launched from NeedsResolution) returns a result. */
+    fun completeDriveAuthorization(data: Intent?): AuthorizationResult {
+        val activity = ActivityHolder.requireActivity()
+        val result = Identity.getAuthorizationClient(activity)
+            .getAuthorizationResultFromIntent(data)
         currentToken = result.accessToken
         return result
     }
