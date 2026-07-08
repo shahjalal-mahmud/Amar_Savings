@@ -1,8 +1,10 @@
 package com.appriyo.amarsavings.ui.signin
 
 import android.content.Intent
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.appriyo.amarsavings.data.auth.AuthDebug
 import com.appriyo.amarsavings.data.auth.AuthRepository
 import com.appriyo.amarsavings.data.auth.AuthState
 import com.appriyo.amarsavings.data.auth.GoogleAuthClient
@@ -51,11 +53,15 @@ class SignInViewModel(
     /** Step 1: start One Tap. Caller must observe [pendingIntent] and launch it. */
     fun beginOneTap() {
         if (_inFlight.value) return
+        Log.d(AuthDebug.TAG, "SignInViewModel.beginOneTap()")
         viewModelScope.launch {
             _inFlight.value = true
             runCatching { client.beginSignIn() }
                 .onSuccess { _pendingIntent.value = it }
-                .onFailure { t -> auth.broadcastError(humanReadableAuthError(t)) }
+                .onFailure { t ->
+                    AuthDebug.logFailure("beginOneTap", t)
+                    auth.broadcastError(humanReadableAuthError(t))
+                }
         }
     }
 
@@ -63,6 +69,7 @@ class SignInViewModel(
     fun handleOneTapResult(data: Intent?) {
         viewModelScope.launch {
             _pendingIntent.value = null
+            Log.d(AuthDebug.TAG, "handleOneTapResult() data=${if (data == null) "null" else "present"}")
 
             // data == null means the user dismissed the system account chooser —
             // a real cancellation. Anything else is a parse failure from the
@@ -78,6 +85,7 @@ class SignInViewModel(
             val credential = try {
                 client.handleActivityResult(data)
             } catch (t: Throwable) {
+                AuthDebug.logFailure("handleOneTapResult.handleActivityResult", t)
                 auth.broadcastError(humanReadableAuthError(t))
                 _inFlight.value = false
                 return@launch
@@ -91,6 +99,7 @@ class SignInViewModel(
             val email = client.extractEmailFromIdToken(credential) ?: credential.id
             val displayName = credential.displayName
             val photoUrl = credential.profilePictureUri?.toString()
+            Log.d(AuthDebug.TAG, "One Tap credential parsed, email=$email")
             prefs.setUserProfile(email, displayName, photoUrl)
             // Now request drive.appdata authorization and flip state
             // (or, if consent is needed, emit driveConsentIntent for the UI).

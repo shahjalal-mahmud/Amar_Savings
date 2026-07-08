@@ -6,6 +6,7 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 import com.appriyo.amarsavings.BuildConfig
 import com.google.android.gms.auth.api.identity.AuthorizationRequest
 import com.google.android.gms.auth.api.identity.AuthorizationResult
@@ -50,11 +51,18 @@ class GoogleAuthClient(private val context: Context) {
 
     /** Returns a PendingIntent to launch the One Tap UI. */
     suspend fun beginSignIn(): android.app.PendingIntent {
+        Log.d(AuthDebug.TAG, "beginSignIn() called, serverClientId=${BuildConfig.GOOGLE_OAUTH_CLIENT_ID}")
         return suspendCancellableCoroutine { cont ->
             Identity.getSignInClient(context)
                 .beginSignIn(buildSignInRequest())
-                .addOnSuccessListener { result -> cont.resume(result.pendingIntent) }
-                .addOnFailureListener { cont.resumeWithException(it) }
+                .addOnSuccessListener { result ->
+                    Log.d(AuthDebug.TAG, "beginSignIn() SUCCESS, pendingIntent obtained")
+                    cont.resume(result.pendingIntent)
+                }
+                .addOnFailureListener { t ->
+                    AuthDebug.logFailure("beginSignIn", t)
+                    cont.resumeWithException(t)
+                }
         }
     }
 
@@ -64,8 +72,11 @@ class GoogleAuthClient(private val context: Context) {
         return suspendCancellableCoroutine { cont ->
             val signInClient = Identity.getSignInClient(context)
             try {
-                cont.resume(signInClient.getSignInCredentialFromIntent(data))
+                val credential = signInClient.getSignInCredentialFromIntent(data)
+                Log.d(AuthDebug.TAG, "handleActivityResult() SUCCESS, id=${credential.id}")
+                cont.resume(credential)
             } catch (t: Throwable) {
+                AuthDebug.logFailure("handleActivityResult", t)
                 cont.resumeWithException(t)
             }
         }
@@ -77,6 +88,10 @@ class GoogleAuthClient(private val context: Context) {
     }
 
     suspend fun authorizeDriveAccess(): DriveAuthOutcome {
+        Log.d(
+            AuthDebug.TAG,
+            "authorizeDriveAccess() called, scope=$DRIVE_APP_DATA_SCOPE, clientId=${BuildConfig.GOOGLE_OAUTH_CLIENT_ID}"
+        )
         ActivityHolder.requireActivity()
         val request = AuthorizationRequest.builder()
             .setRequestedScopes(listOf(Scope(DRIVE_APP_DATA_SCOPE)))
@@ -85,8 +100,17 @@ class GoogleAuthClient(private val context: Context) {
         val result = suspendCancellableCoroutine<AuthorizationResult> { cont ->
             Identity.getAuthorizationClient(ActivityHolder.currentActivity!!)
                 .authorize(request)
-                .addOnSuccessListener { cont.resume(it) }
-                .addOnFailureListener { cont.resumeWithException(it) }
+                .addOnSuccessListener {
+                    Log.d(
+                        AuthDebug.TAG,
+                        "authorize() SUCCESS, hasResolution=${it.hasResolution()}, grantedScopes=${it.grantedScopes}"
+                    )
+                    cont.resume(it)
+                }
+                .addOnFailureListener { t ->
+                    AuthDebug.logFailure("authorizeDriveAccess", t)
+                    cont.resumeWithException(t)
+                }
         }
         return if (result.hasResolution()) {
             DriveAuthOutcome.NeedsResolution(result.pendingIntent!!)
@@ -99,10 +123,16 @@ class GoogleAuthClient(private val context: Context) {
     /** Called after the consent UI (launched from NeedsResolution) returns a result. */
     fun completeDriveAuthorization(data: Intent?): AuthorizationResult {
         val activity = ActivityHolder.requireActivity()
-        val result = Identity.getAuthorizationClient(activity)
-            .getAuthorizationResultFromIntent(data)
-        currentToken = result.accessToken
-        return result
+        return try {
+            val result = Identity.getAuthorizationClient(activity)
+                .getAuthorizationResultFromIntent(data)
+            Log.d(AuthDebug.TAG, "completeDriveAuthorization() SUCCESS, grantedScopes=${result.grantedScopes}")
+            currentToken = result.accessToken
+            result
+        } catch (t: Throwable) {
+            AuthDebug.logFailure("completeDriveAuthorization", t)
+            throw t
+        }
     }
 
     /**

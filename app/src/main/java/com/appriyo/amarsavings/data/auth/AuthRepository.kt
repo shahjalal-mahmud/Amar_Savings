@@ -1,6 +1,7 @@
 package com.appriyo.amarsavings.data.auth
 
 import android.content.Intent
+import android.util.Log
 import com.appriyo.amarsavings.data.db.AppPreferences
 import com.google.android.gms.common.api.ApiException
 import kotlinx.coroutines.CoroutineScope
@@ -50,28 +51,38 @@ class AuthRepository(
      * the One Tap credential has been parsed and the user profile saved.
      */
     suspend fun signInWithCachedActivity() {
+        Log.d(AuthDebug.TAG, "AuthRepository.signInWithCachedActivity() start")
         runCatching {
             when (val outcome = client.authorizeDriveAccess()) {
                 is GoogleAuthClient.DriveAuthOutcome.NeedsResolution -> {
+                    Log.d(AuthDebug.TAG, "Drive auth needs resolution UI, launching consent intent")
                     _driveConsentIntent.value = outcome.pendingIntent
                 }
                 is GoogleAuthClient.DriveAuthOutcome.Authorized -> completeSignIn()
             }
-        }.onFailure { t -> _state.value = AuthState.Error(humanReadable(t)) }
+        }.onFailure { t ->
+            AuthDebug.logFailure("signInWithCachedActivity", t)
+            _state.value = AuthState.Error(humanReadable(t))
+        }
     }
 
     suspend fun handleDriveConsentResult(data: Intent?) {
+        Log.d(AuthDebug.TAG, "AuthRepository.handleDriveConsentResult() start")
         _driveConsentIntent.value = null
         runCatching {
             client.completeDriveAuthorization(data)
             completeSignIn()
-        }.onFailure { t -> _state.value = AuthState.Error(humanReadable(t)) }
+        }.onFailure { t ->
+            AuthDebug.logFailure("handleDriveConsentResult", t)
+            _state.value = AuthState.Error(humanReadable(t))
+        }
     }
 
     private suspend fun completeSignIn() {
         val email = prefs.userEmail.first()
             ?: throw IllegalStateException("Sign-in completed but no profile stored")
         val displayName = prefs.userDisplayName.first()
+        Log.d(AuthDebug.TAG, "completeSignIn() -> Restoring, email=$email")
         _state.value = AuthState.Restoring(email, displayName)
     }
 
@@ -79,6 +90,7 @@ class AuthRepository(
 
     /** Emit an error without touching the Drive auth path (used by VM). */
     fun broadcastError(message: String) {
+        Log.e(AuthDebug.TAG, "broadcastError: $message")
         _state.value = AuthState.Error(message)
     }
 
@@ -114,10 +126,9 @@ class AuthRepository(
 
 /**
  * Maps any [Throwable] thrown by the Google Identity Services APIs into a
- * short, user-readable message. Used by [AuthRepository] for state transitions
- * and by [SignInViewModel] to surface errors that would otherwise be swallowed
- * (e.g. a DEVELOPER_ERROR from a misconfigured OAuth client previously showed
- * up as the misleading "Sign-in cancelled").
+ * short, user-readable message. The FULL diagnostic detail is logged via
+ * [AuthDebug.logFailure] at the point of failure — this function only
+ * produces the string shown in the snackbar.
  */
 internal fun humanReadableAuthError(t: Throwable): String = when (t) {
     is ApiException -> when (t.statusCode) {
@@ -125,7 +136,7 @@ internal fun humanReadableAuthError(t: Throwable): String = when (t) {
         10 -> "Developer error — check OAuth client SHA-1 fingerprint / client ID configuration (code 10)."
         12501 -> "Sign-in cancelled."
         12502 -> "Sign-in already in progress."
-        16 -> "Authorization was canceled or failed (code 16). Check Console config (see log)."
+        16 -> "Authorization failed (code 16). Check Logcat tag 'AmarAuth' for details."
         else -> "Google Sign-In failed (code ${t.statusCode})."
     }
     else -> t.message ?: "Unknown sign-in error."
