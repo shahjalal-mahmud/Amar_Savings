@@ -19,6 +19,16 @@ val keystoreProperties = Properties().apply {
     }
 }
 
+// Load local.properties so we can read GOOGLE_OAUTH_CLIENT_ID from it.
+// project.findProperty() does NOT read local.properties automatically —
+// only Gradle/AGP internals do that for sdk.dir. We have to parse it ourselves.
+val localPropertiesFile = rootProject.file("local.properties")
+val localProperties = Properties().apply {
+    if (localPropertiesFile.exists()) {
+        load(FileInputStream(localPropertiesFile))
+    }
+}
+
 android {
     namespace = "com.appriyo.amarsavings"
     compileSdk = 36
@@ -34,7 +44,7 @@ android {
 
         // Google OAuth Web Client ID, sourced from local.properties (which is gitignored).
         // The value is a *public* identifier (per Google docs) and is safe to ship in BuildConfig.
-        val googleOAuthClientId: String = (project.findProperty("GOOGLE_OAUTH_CLIENT_ID") as String?)
+        val googleOAuthClientId: String = localProperties.getProperty("GOOGLE_OAUTH_CLIENT_ID")
             ?: "REPLACE_WITH_YOUR_WEB_CLIENT_ID.apps.googleusercontent.com"
         buildConfigField("String", "GOOGLE_OAUTH_CLIENT_ID", "\"$googleOAuthClientId\"")
     }
