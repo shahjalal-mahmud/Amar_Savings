@@ -3,6 +3,7 @@ package com.appriyo.amarsavings.navigation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -34,9 +35,14 @@ fun AppNavGraph(
     val authState by auth.state.collectAsState()
     val restoreOutcome by scheduler.restoreOutcome.collectAsState()
 
-    val startDestination = when (authState) {
-        is AuthState.Restoring -> Route.Restore.path
-        else -> Route.Dashboard.path
+    // startDestination is consumed by NavHost only on initial composition;
+    // computing it on every recomposition is wasted work. remember{} freezes
+    // it to the value seen on the first pass.
+    val startDestination = remember {
+        when (authState) {
+            is AuthState.Restoring -> Route.Restore.path
+            else -> Route.Dashboard.path
+        }
     }
 
     NavHost(navController = navController, startDestination = startDestination) {
