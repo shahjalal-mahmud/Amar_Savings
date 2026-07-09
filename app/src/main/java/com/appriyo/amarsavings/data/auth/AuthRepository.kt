@@ -223,9 +223,19 @@ class AuthRepository(
      * [com.appriyo.amarsavings.data.backup.BackupRepository]. If consent UI
      * turns out to be needed, it's surfaced via [driveConsentIntent] and this
      * returns false so the caller can bail out for now.
+     *
+     * Also returns false (with NO logging or error surface) when no
+     * foreground Activity is attached: the Identity Authorization API cannot
+     * drive its consent UI from the background, and throwing
+     * `ActivityHolder.requireActivity` would be logged as a spurious
+     * "authorization failure" for an expected app-not-foreground condition.
      */
     suspend fun ensureDriveAccess(): Boolean {
         if (driveAuthClient.getAccessToken() != null) return true
+        // Background tick (auto-upload while app is killed / backgrounded) or
+        // process teardown — bail quietly. Caller will retry the next time
+        // the app is in the foreground with a valid signed-in state.
+        if (!driveAuthClient.hasActivityForeground()) return false
         val outcome = runCatching { driveAuthClient.authorizeDriveAccess() }
             .onFailure { t -> AuthDebug.logFailure("ensureDriveAccess", t) }
             .getOrNull() ?: return false
