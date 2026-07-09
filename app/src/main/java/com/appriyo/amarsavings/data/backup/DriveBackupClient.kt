@@ -10,6 +10,23 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.util.concurrent.TimeUnit
 
+/**
+ * Thrown by [DriveBackupClient] when a Drive REST API call returns HTTP 401,
+ * which signals that the cached `drive.appdata` OAuth access token has expired
+ * (the Identity Authorization API token has roughly a 1-hour lifetime).
+ *
+ * Callers (currently [BackupRepository]) should catch this specifically,
+ * drop the stale token via [DriveAuthClient.clearToken], attempt one silent
+ * re-authorization via `AuthRepository.ensureDriveAccess()`, and retry the
+ * original call at most once. Anything else risks hammering the auth API
+ * on every auto-backup debounce tick.
+ */
+class DriveTokenExpiredException(
+    val operation: String,
+    val httpCode: Int = 401,
+    message: String? = "Drive token expired (HTTP 401 from $operation)"
+) : RuntimeException(message)
+
 class DriveBackupClient(
     private val http: OkHttpClient,
     private val auth: DriveAuthClient,
@@ -60,6 +77,12 @@ class DriveBackupClient(
 
             http.newCall(req).execute().use { resp ->
                 val body = resp.body?.string().orEmpty()
+                if (resp.code == 401) {
+                    throw DriveTokenExpiredException(
+                        operation = "upload",
+                        message = "Drive token expired during upload (HTTP 401): $body"
+                    )
+                }
                 if (!resp.isSuccessful) error("Drive upload failed (${resp.code}): $body")
                 val id = REGEX_ID.find(body)?.groupValues?.getOrNull(1)
                     ?: error("Drive upload: no file id in response: $body")
@@ -84,6 +107,12 @@ class DriveBackupClient(
                 .build()
             http.newCall(req).execute().use { resp ->
                 if (resp.code == 404) return@use null
+                if (resp.code == 401) {
+                    throw DriveTokenExpiredException(
+                        operation = "download",
+                        message = "Drive token expired during download (HTTP 401): ${resp.body?.string()}"
+                    )
+                }
                 val body = resp.body?.string()
                 if (!resp.isSuccessful) error("Drive download failed (${resp.code}): $body")
                 if (body.isNullOrBlank()) null
@@ -106,6 +135,12 @@ class DriveBackupClient(
                 .get()
                 .build()
             http.newCall(req).execute().use { resp ->
+                if (resp.code == 401) {
+                    throw DriveTokenExpiredException(
+                        operation = "getMeta",
+                        message = "Drive token expired during getMeta (HTTP 401): ${resp.body?.string()}"
+                    )
+                }
                 if (!resp.isSuccessful) error("Drive list failed (${resp.code})")
                 val body = resp.body?.string().orEmpty()
                 val id = REGEX_ID.find(body)?.groupValues?.getOrNull(1) ?: return@use null
