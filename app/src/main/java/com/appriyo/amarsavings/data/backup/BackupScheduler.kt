@@ -14,7 +14,6 @@ import com.appriyo.amarsavings.data.db.AppPreferences
 import com.appriyo.amarsavings.data.repository.SavingsRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -47,6 +46,24 @@ class BackupScheduler(
     private val _restoreOutcome = MutableStateFlow<RestoreOutcome>(RestoreOutcome.Idle)
     val restoreOutcome: StateFlow<RestoreOutcome> = _restoreOutcome.asStateFlow()
 
+    /**
+     * Re-entrancy guard for the restore-if-restoring collector below.
+     *
+     * StateFlow contract guarantees a distinct value triggers a downstream
+     * collection, but equals-by-value emissions of `Restoring(uid)` (e.g. the
+     * same state object re-set, or two rehydrate paths racing during a fast
+     * sign-out / sign-in on a misbehaving device) could otherwise schedule
+     * two concurrent restoreIfAny() runs. Holding a single Drive download
+     * call twice in parallel is harmless in the happy path but races the
+     * backup mutex and doubles driveConsumption / log noise in failures.
+     *
+     * Set to the uid we're currently restoring for, cleared after the
+     * matching outcome is dispatched (via onRestoreComplete /
+     * onRestoreFailed). A Restoring state for a different uid is allowed
+     * through — it counts as a fresh, unrelated restore.
+     */
+    @Volatile private var handledRestoringForUid: String? = null
+
     fun start() {
         if (started) return
         started = true
@@ -58,13 +75,26 @@ class BackupScheduler(
         scope.launch {
             auth.state.collect { s ->
                 if (s is AuthState.Restoring) {
-                    val outcome = backup.restoreIfAny()
-                    _restoreOutcome.value = outcome
-                    when (outcome) {
-                        is RestoreOutcome.Restored -> auth.onRestoreComplete()
-                        is RestoreOutcome.NoBackup -> auth.onRestoreComplete()
-                        is RestoreOutcome.Failed -> auth.onRestoreFailed()
-                        RestoreOutcome.Idle -> Unit
+                    // Already handling a restore for this uid — skip.
+                    // Different uid still slips through (e.g. user signed out
+                    // and back in as a different account during a hanging
+                    // restore).
+                    if (handledRestoringForUid == s.uid) return@collect
+                    handledRestoringForUid = s.uid
+                    try {
+                        val outcome = backup.restoreIfAny()
+                        _restoreOutcome.value = outcome
+                        when (outcome) {
+                            is RestoreOutcome.Restored -> auth.onRestoreComplete()
+                            is RestoreOutcome.NoBackup -> auth.onRestoreComplete()
+                            is RestoreOutcome.Failed -> auth.onRestoreFailed()
+                            RestoreOutcome.Idle -> Unit
+                        }
+                    } finally {
+                        // Always clear the guard, even if restoreIfAny throws,
+                        // so a transient failure doesn't permanently wedge us
+                        // out of future restores for the same uid.
+                        handledRestoringForUid = null
                     }
                 }
             }
