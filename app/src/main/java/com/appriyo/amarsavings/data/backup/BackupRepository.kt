@@ -131,7 +131,24 @@ class BackupRepository(
         if (!auth.ensureDriveAccess()) return RestoreOutcome.Failed("Drive authorization required")
 
         return mutex.withLock {
-            val downloaded = withDriveTokenRetry("download") { drive.download() }
+            // Look up the file id once, then thread it through download +
+            // applyRestore. Previously applyRestore() called getMeta() again at
+            // the end purely to rediscover an id it could have just received,
+            // costing an extra REST round-trip on every successful restore.
+            val meta = withDriveTokenRetry("getMeta") { drive.getMeta() }
+            val fileId = meta.getOrNull()?.fileId
+            if (fileId == null) {
+                return@withLock when (meta.exceptionOrNull()) {
+                    null -> {
+                        // Genuinely no backup file present.
+                        prefs.setLastBackupAt(0L)
+                        prefs.setLocalStateHash(savings.computeLocalStateHash())
+                        RestoreOutcome.NoBackup
+                    }
+                    else -> RestoreOutcome.Failed(meta.exceptionOrNull()?.message ?: "Download failed")
+                }
+            }
+            val downloaded = withDriveTokenRetry("download") { drive.download(fileId) }
             downloaded.fold(
                 onSuccess = { backup ->
                     if (backup == null) {
@@ -139,7 +156,7 @@ class BackupRepository(
                         prefs.setLocalStateHash(savings.computeLocalStateHash())
                         RestoreOutcome.NoBackup
                     } else {
-                        applyRestore(backup)
+                        applyRestore(backup, fileId)
                     }
                 },
                 onFailure = { t ->
@@ -149,15 +166,16 @@ class BackupRepository(
         }
     }
 
-    private suspend fun applyRestore(backup: BackupFile): RestoreOutcome {
+    private suspend fun applyRestore(backup: BackupFile, fileId: String): RestoreOutcome {
         return try {
             val transactions = backup.transactions.map { it.toEntity() }
             savings.replaceAllTransactions(transactions)
             prefs.setSavingsGoal(backup.savingsGoal)
             prefs.setLastBackupAt(backup.createdAt)
             prefs.setLocalStateHash(savings.computeLocalStateHash())
-            withDriveTokenRetry("getMeta") { drive.getMeta() }
-                .getOrNull()?.fileId?.let { prefs.setDriveBackupFileId(it) }
+            // fileId is already known — no need to call getMeta() again just
+            // to persist it.
+            prefs.setDriveBackupFileId(fileId)
             _state.value = BackupState.SyncedAt(backup.createdAt)
             RestoreOutcome.Restored(transactions.size)
         } catch (t: Throwable) {
