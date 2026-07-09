@@ -241,6 +241,14 @@ class AuthRepository(
 
     fun clearDriveConsentIntent() { _driveConsentIntent.value = null }
 
+    /**
+     * Drops the in-memory cached Drive access token so the next
+     * [ensureDriveAccess] call is forced to (silently, in the common case)
+     * re-acquire it. Used by the Drive 401 retry path in
+     * [com.appriyo.amarsavings.data.backup.BackupRepository].
+     */
+    fun clearDriveToken() { driveAuthClient.clearToken() }
+
     /** Called by [com.appriyo.amarsavings.data.backup.BackupRepository] after restore completes. */
     fun onRestoreComplete() {
         val current = _state.value
