@@ -2,7 +2,8 @@ package com.appriyo.amarsavings.di
 
 import androidx.room.Room
 import com.appriyo.amarsavings.data.auth.AuthRepository
-import com.appriyo.amarsavings.data.auth.GoogleAuthClient
+import com.appriyo.amarsavings.data.auth.DriveAuthClient
+import com.appriyo.amarsavings.data.auth.FirebaseAuthClient
 import com.appriyo.amarsavings.data.backup.BackupRepository
 import com.appriyo.amarsavings.data.backup.BackupScheduler
 import com.appriyo.amarsavings.data.backup.DriveBackupClient
@@ -17,7 +18,7 @@ import com.appriyo.amarsavings.viewmodel.TransactionViewModel
 import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
 import org.koin.android.ext.koin.androidContext
-import org.koin.androidx.viewmodel.dsl.viewModel
+import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.module
 
 val appModule = module {
@@ -36,22 +37,25 @@ val appModule = module {
     single { SavingsRepository(get(), get()) }
 
     // ── Auth ───────────────────────────────────────────────────────────────
-    single { GoogleAuthClient(androidContext()) }
-    single { AuthRepository(get(), get()) }
+    single { FirebaseAuthClient(androidContext()) }
+    single { DriveAuthClient() }
+    single { AuthRepository(get(), get(), get()) }
 
     // ── Backup ─────────────────────────────────────────────────────────────
     single { OkHttpClientProvider.client }
     single { JsonProvider.json }
     single { DriveBackupClient(get(), get(), get()) }
-    single { BackupRepository(get(), get(), get(), get(), get(), get()) }
+    single { BackupRepository(get(), get(), get(), get(), get()) }
     single { BackupScheduler(androidContext(), get(), get(), get(), get()) }
 
     // ── ViewModels ─────────────────────────────────────────────────────────
-    viewModel { DashboardViewModel(get()) }
-    viewModel { HistoryViewModel(get()) }
-    viewModel { TransactionViewModel(get()) }
-    viewModel { SignInViewModel(get(), get(), get(), get()) }
-    viewModel { SettingsViewModel(get(), get(), get(), get(), get()) }
+    // Option A: Using the clean Constructor DSL (Recommended)
+    viewModelOf(::DashboardViewModel)
+    viewModelOf(::HistoryViewModel)
+    viewModelOf(::TransactionViewModel)
+    viewModelOf(::SignInViewModel)
+    viewModelOf(::SettingsViewModel)
+
 }
 
 /** OkHttp client configured for Drive REST calls. */
