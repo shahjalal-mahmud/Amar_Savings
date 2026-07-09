@@ -1,104 +1,137 @@
 package com.appriyo.amarsavings.data.auth
 
+import android.content.Context
 import android.content.Intent
 import android.util.Log
+import androidx.credentials.exceptions.GetCredentialCancellationException
+import androidx.credentials.exceptions.GetCredentialException
+import androidx.credentials.exceptions.NoCredentialException
 import com.appriyo.amarsavings.data.db.AppPreferences
 import com.google.android.gms.common.api.ApiException
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 
 /**
- * Single source of truth for the user's Google sign-in status.
+ * Single source of truth for the user's sign-in status.
  *
- * Combines the in-memory [GoogleAuthClient] token cache with the persistent
- * user profile in [AppPreferences] so the UI can react to sign-in / sign-out
- * transitions consistently.
+ * Identity (email / display name / photo, session persistence across app
+ * restarts) is owned by Firebase Auth via [FirebaseAuthClient]. This class
+ * layers on top of that:
+ *  - the [AuthState] UI state machine (SignedOut / Restoring / SignedIn / Error)
+ *  - the separate Drive `drive.appdata` authorization via [DriveAuthClient]
  */
 class AuthRepository(
-    private val client: GoogleAuthClient,
+    private val firebaseAuthClient: FirebaseAuthClient,
+    private val driveAuthClient: DriveAuthClient,
     private val prefs: AppPreferences
 ) {
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-
     private val _state = MutableStateFlow<AuthState>(AuthState.SignedOut)
     val state: StateFlow<AuthState> = _state.asStateFlow()
+
     private val _driveConsentIntent = MutableStateFlow<android.app.PendingIntent?>(null)
     val driveConsentIntent: StateFlow<android.app.PendingIntent?> = _driveConsentIntent.asStateFlow()
 
     init {
-        // Re-hydrate from persistent storage on construction.
-        scope.launch {
-            val email = prefs.userEmail.first()
-            val name = prefs.userDisplayName.first()
-            val photo = prefs.userPhotoUrl.first()
-            _state.value = if (email != null) {
-                AuthState.SignedIn(email, name, photo)
-            } else {
-                AuthState.SignedOut
-            }
+        // Firebase persists the session itself, so on process start we trust
+        // FirebaseAuth.currentUser directly instead of our own profile cache.
+        val profile = firebaseAuthClient.currentProfile()
+        _state.value = if (profile != null) {
+            AuthState.SignedIn(profile.uid, profile.email, profile.displayName, profile.photoUrl)
+        } else {
+            AuthState.SignedOut
         }
     }
 
     /**
-     * Request Drive authorization using the Activity that was previously set
-     * via [ActivityHolder.currentActivity]. Called by [SignInViewModel] after
-     * the One Tap credential has been parsed and the user profile saved.
+     * Step 1: sign in with Google via Firebase (Credential Manager picker),
+     * then kick off Drive `drive.appdata` authorization. On success, state
+     * becomes [AuthState.Restoring], which
+     * [com.appriyo.amarsavings.data.backup.BackupScheduler] observes to
+     * trigger a restore.
      */
-    suspend fun signInWithCachedActivity() {
-        Log.d(AuthDebug.TAG, "AuthRepository.signInWithCachedActivity() start")
-        runCatching {
-            when (val outcome = client.authorizeDriveAccess()) {
-                is GoogleAuthClient.DriveAuthOutcome.NeedsResolution -> {
-                    Log.d(AuthDebug.TAG, "Drive auth needs resolution UI, launching consent intent")
-                    _driveConsentIntent.value = outcome.pendingIntent
-                }
-                is GoogleAuthClient.DriveAuthOutcome.Authorized -> completeSignIn()
+    suspend fun signIn(activityContext: Context) {
+        Log.d(AuthDebug.TAG, "AuthRepository.signIn() start")
+        runCatching { firebaseAuthClient.signIn(activityContext) }
+            .onSuccess { profile ->
+                prefs.setUserProfile(profile.email, profile.displayName, profile.photoUrl)
+                requestDriveAccess(profile)
             }
-        }.onFailure { t ->
-            AuthDebug.logFailure("signInWithCachedActivity", t)
-            _state.value = AuthState.Error(humanReadable(t))
-        }
+            .onFailure { t ->
+                AuthDebug.logFailure("AuthRepository.signIn", t)
+                _state.value = AuthState.Error(humanReadable(t))
+            }
     }
 
-    suspend fun handleDriveConsentResult(data: Intent?) {
+    private suspend fun requestDriveAccess(profile: FirebaseAuthClient.Profile) {
+        runCatching { driveAuthClient.authorizeDriveAccess() }
+            .onSuccess { outcome ->
+                when (outcome) {
+                    is DriveAuthClient.DriveAuthOutcome.NeedsResolution -> {
+                        Log.d(AuthDebug.TAG, "Drive auth needs resolution UI, launching consent intent")
+                        _driveConsentIntent.value = outcome.pendingIntent
+                    }
+                    is DriveAuthClient.DriveAuthOutcome.Authorized -> {
+                        _state.value = AuthState.Restoring(profile.uid, profile.email, profile.displayName)
+                    }
+                }
+            }
+            .onFailure { t ->
+                AuthDebug.logFailure("requestDriveAccess", t)
+                _state.value = AuthState.Error(humanReadable(t))
+            }
+    }
+
+    /** Step 2 (only if Drive auth needed resolution UI): consent result. */
+    fun handleDriveConsentResult(data: Intent?) {
         Log.d(AuthDebug.TAG, "AuthRepository.handleDriveConsentResult() start")
         _driveConsentIntent.value = null
-        runCatching {
-            client.completeDriveAuthorization(data)
-            completeSignIn()
-        }.onFailure { t ->
-            AuthDebug.logFailure("handleDriveConsentResult", t)
-            _state.value = AuthState.Error(humanReadable(t))
+        val profile = firebaseAuthClient.currentProfile()
+        if (profile == null) {
+            _state.value = AuthState.Error("Signed out before Drive consent completed.")
+            return
         }
+        runCatching { driveAuthClient.completeDriveAuthorization(data) }
+            .onSuccess {
+                _state.value = AuthState.Restoring(profile.uid, profile.email, profile.displayName)
+            }
+            .onFailure { t ->
+                AuthDebug.logFailure("handleDriveConsentResult", t)
+                _state.value = AuthState.Error(humanReadable(t))
+            }
     }
 
-    private suspend fun completeSignIn() {
-        val email = prefs.userEmail.first()
-            ?: throw IllegalStateException("Sign-in completed but no profile stored")
-        val displayName = prefs.userDisplayName.first()
-        Log.d(AuthDebug.TAG, "completeSignIn() -> Restoring, email=$email")
-        _state.value = AuthState.Restoring(email, displayName)
+    /**
+     * Ensures we hold a Drive access token before an upload/download. Firebase
+     * sessions persist across restarts, but the Drive access token is only
+     * cached in memory — so on a fresh process we may need to (silently,
+     * usually) re-request it. Called by
+     * [com.appriyo.amarsavings.data.backup.BackupRepository]. If consent UI
+     * turns out to be needed, it's surfaced via [driveConsentIntent] and this
+     * returns false so the caller can bail out for now.
+     */
+    suspend fun ensureDriveAccess(): Boolean {
+        if (driveAuthClient.getAccessToken() != null) return true
+        val outcome = runCatching { driveAuthClient.authorizeDriveAccess() }
+            .onFailure { t -> AuthDebug.logFailure("ensureDriveAccess", t) }
+            .getOrNull() ?: return false
+
+        return when (outcome) {
+            is DriveAuthClient.DriveAuthOutcome.Authorized -> true
+            is DriveAuthClient.DriveAuthOutcome.NeedsResolution -> {
+                _driveConsentIntent.value = outcome.pendingIntent
+                false
+            }
+        }
     }
 
     fun clearDriveConsentIntent() { _driveConsentIntent.value = null }
 
-    /** Emit an error without touching the Drive auth path (used by VM). */
-    fun broadcastError(message: String) {
-        Log.e(AuthDebug.TAG, "broadcastError: $message")
-        _state.value = AuthState.Error(message)
-    }
-
-    /** Called by [BackupRepository] after the restore step completes. */
+    /** Called by [com.appriyo.amarsavings.data.backup.BackupRepository] after restore completes. */
     fun onRestoreComplete() {
         val current = _state.value
         if (current is AuthState.Restoring) {
-            _state.value = AuthState.SignedIn(current.email, current.displayName, null)
+            _state.value = AuthState.SignedIn(current.uid, current.email, current.displayName, null)
         }
     }
 
@@ -106,13 +139,14 @@ class AuthRepository(
     fun onRestoreFailed() {
         val current = _state.value
         if (current is AuthState.Restoring) {
-            _state.value = AuthState.SignedIn(current.email, current.displayName, null)
+            _state.value = AuthState.SignedIn(current.uid, current.email, current.displayName, null)
         }
     }
 
-    /** Clears tokens and stored profile. Local Room data is untouched. */
+    /** Signs out of Firebase, clears the Drive token, and wipes stored profile/backup prefs. */
     suspend fun signOut() {
-        client.signOut()
+        firebaseAuthClient.signOut()
+        driveAuthClient.clearToken()
         prefs.clearAuthAndBackup()
         _state.value = AuthState.SignedOut
     }
@@ -125,10 +159,9 @@ class AuthRepository(
 }
 
 /**
- * Maps any [Throwable] thrown by the Google Identity Services APIs into a
- * short, user-readable message. The FULL diagnostic detail is logged via
- * [AuthDebug.logFailure] at the point of failure — this function only
- * produces the string shown in the snackbar.
+ * Maps sign-in / Drive-authorization failures into a short, user-readable
+ * message. Full diagnostic detail is logged via [AuthDebug.logFailure] at the
+ * point of failure — this only produces the string shown in the snackbar.
  */
 internal fun humanReadableAuthError(t: Throwable): String = when (t) {
     is ApiException -> when (t.statusCode) {
@@ -139,5 +172,8 @@ internal fun humanReadableAuthError(t: Throwable): String = when (t) {
         16 -> "Authorization failed (code 16). Check Logcat tag 'AmarAuth' for details."
         else -> "Google Sign-In failed (code ${t.statusCode})."
     }
+    is GetCredentialCancellationException -> "Sign-in cancelled."
+    is NoCredentialException -> "No Google account found on this device."
+    is GetCredentialException -> "Sign-in failed: ${t.message ?: t.type}"
     else -> t.message ?: "Unknown sign-in error."
 }

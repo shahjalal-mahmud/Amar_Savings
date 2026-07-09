@@ -54,6 +54,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -72,19 +73,13 @@ fun SignInScreen(
 ) {
     val authState by viewModel.authState.collectAsState()
     val inFlight by viewModel.inFlight.collectAsState()
-    val pendingIntent by viewModel.pendingIntent.collectAsState()
+    val context = LocalContext.current
 
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // ActivityResultLauncher for Google One Tap PendingIntent.
-    val launcher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartIntentSenderForResult()
-    ) { result ->
-        viewModel.handleOneTapResult(result.data)
-    }
-
+    // Drive consent UI still uses the legacy PendingIntent/launcher pattern —
+    // this is the Identity Authorization API, separate from Firebase sign-in.
     val driveConsentIntent by viewModel.driveConsentIntent.collectAsState()
-
     val driveConsentLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartIntentSenderForResult()
     ) { result ->
@@ -92,16 +87,9 @@ fun SignInScreen(
     }
 
     LaunchedEffect(driveConsentIntent) {
-        val pi = driveConsentIntent ?: return@LaunchedEffect
+        val pi: PendingIntent = driveConsentIntent ?: return@LaunchedEffect
         driveConsentLauncher.launch(IntentSenderRequest.Builder(pi.intentSender).build())
         viewModel.clearDriveConsentIntent()
-    }
-
-    // Whenever the VM produces a PendingIntent, launch it.
-    LaunchedEffect(pendingIntent) {
-        val pi: PendingIntent = pendingIntent ?: return@LaunchedEffect
-        launcher.launch(IntentSenderRequest.Builder(pi.intentSender).build())
-        viewModel.clearPendingIntent()
     }
 
     LaunchedEffect(authState) {
@@ -121,7 +109,7 @@ fun SignInScreen(
     ) { padding ->
         SignInContent(
             inFlight = inFlight,
-            onSignIn = { viewModel.beginOneTap() },
+            onSignIn = { viewModel.beginSignIn(context) },
             onSkip = onSkip,
             modifier = Modifier
                 .fillMaxSize()
