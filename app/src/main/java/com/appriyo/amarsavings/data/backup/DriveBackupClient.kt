@@ -1,6 +1,6 @@
 package com.appriyo.amarsavings.data.backup
 
-import com.appriyo.amarsavings.data.auth.GoogleAuthClient
+import com.appriyo.amarsavings.data.auth.DriveAuthClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -10,27 +10,11 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.util.concurrent.TimeUnit
 
-/**
- * Thin wrapper around the Drive REST v3 API for managing a single backup file
- * inside the user's `appDataFolder`. We avoid the heavy Google Drive SDK to
- * keep the APK small and the dependency tree clean.
- *
- * The `appDataFolder` is *hidden* — the file is not visible from
- * drive.google.com and can only be read by this app's OAuth client.
- */
 class DriveBackupClient(
     private val http: OkHttpClient,
-    private val auth: GoogleAuthClient,
+    private val auth: DriveAuthClient,
     private val json: Json
 ) {
-
-    /**
-     * Uploads [bytes] as [BACKUP_FILENAME] to the user's appDataFolder.
-     * If a file with the same name already exists, it is updated in place so
-     * we maintain a single canonical backup per account.
-     *
-     * Returns the Drive `fileId` for the uploaded file.
-     */
     suspend fun upload(bytes: ByteArray): Result<String> = withContext(Dispatchers.IO) {
         runCatching {
             val existingId = findBackupFileId()
@@ -65,9 +49,6 @@ class DriveBackupClient(
         }
     }
 
-    /**
-     * Downloads and parses the backup file, or returns null if no backup exists.
-     */
     suspend fun download(): Result<BackupFile?> = withContext(Dispatchers.IO) {
         runCatching {
             val id = findBackupFileId() ?: return@runCatching null
@@ -88,9 +69,6 @@ class DriveBackupClient(
         }
     }
 
-    /**
-     * Returns metadata about the existing backup file, or null if none.
-     */
     suspend fun getMeta(): Result<BackupMeta?> = withContext(Dispatchers.IO) {
         runCatching {
             val token = auth.getAccessToken()
