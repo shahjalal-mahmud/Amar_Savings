@@ -106,10 +106,6 @@ class BackupScheduler(
         }
     }
 
-    fun uploadNow() {
-        scope.launch { runCatching { backup.uploadNow() } }
-    }
-
     private fun registerConnectivityCallback() {
         val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
             ?: return
