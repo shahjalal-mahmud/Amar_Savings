@@ -26,13 +26,20 @@ Every feature supports this goal. The app remains:
 
 The app supports optional Google Sign-In exclusively for backup functionality.
 
-**Splash Screen → Login Check → Dashboard**
+**Splash Screen → Login Check → (Restoring) → Dashboard**
 
-| Scenario           | Flow                                                      |
-|--------------------|-----------------------------------------------------------|
-| User logged in     | Splash → Dashboard                                        |
-| User not logged in | Splash → Login Screen → Dashboard (after login)           |
-| User skips login   | App works fully offline. Backup button shows login option |
+| Scenario           | Flow                                                                    |
+|--------------------|-------------------------------------------------------------------------|
+| User logged in     | Splash → Restoring (silent Drive re-auth) → Dashboard                   |
+| User not logged in | Splash → Login Screen → Dashboard (if Skip) or Restoring → Dashboard (if Sign in) |
+| User signs in      | Login → Restoring screen → Dashboard (after Drive backup is downloaded) |
+| User skips login   | App works fully offline. Settings → "Back up now" prompts sign-in       |
+
+When a user taps "Sign in with Google", the app transitions to a dedicated
+**Restoring** screen (`ui/components/RestoreLoadingScreen.kt`) while it
+silently authorizes the `drive.appdata` scope and downloads any existing
+backup from Google Drive. The user lands on Dashboard only after restore
+completes (or fails — failure falls back to local-only use).
 
 ### Backup Authorization
 
@@ -41,7 +48,9 @@ The app supports optional Google Sign-In exclusively for backup functionality.
 - When a user taps "Backup" while logged out, the app shows a login prompt
 - After successful login, backup runs automatically
 
-**No separate Settings page exists for any authentication configuration.**
+Account and Drive authorization are surfaced through the **Settings screen**,
+which contains the account row (with Sign Out) and the Backup section (Back
+up now / Restore from Drive).
 
 ---
 
@@ -130,22 +139,24 @@ The Dashboard is the primary and central screen of the application.
 
 ### Components
 
-| Component              | Description                                           |
-|------------------------|-------------------------------------------------------|
-| Savings Overview       | Current saved amount + goal amount + remaining amount |
-| Goal Card              | Displays goal. Tap to set or edit                     |
-| Progress Section       | Visual progress toward target                         |
-| Cash Analytics         | Total notes count + distribution by denomination      |
-| Backup Section         | Backup Now button + Last Backup timestamp             |
-| Recent Transactions    | Last 5 entries (adds and withdrawals)                 |
-| Floating Action Button | Tap = Add Cash. Long-press = Cash Out                 |
-| View All Link          | Navigates to full History Screen                      |
+| Component              | Description                                                              |
+|------------------------|--------------------------------------------------------------------------|
+| Savings Overview       | Current saved amount + goal amount + remaining amount                    |
+| Goal Card              | Displays goal. Tap to set or edit                                        |
+| Progress Section       | Visual progress toward target                                            |
+| Cash Analytics         | Total notes count + distribution by denomination                         |
+| Backup Status Icon     | Read-only icon in the top bar reflecting Drive backup state (off / syncing / synced / failed / offline) |
+| Recent Transactions    | Last 5 entries (adds and withdrawals)                                    |
+| Floating Action Button | Tap = Add Cash. Long-press = Cash Out                                    |
+| View All Link          | Navigates to full History Screen                                         |
+| Settings Icon          | Navigates to Settings (account, backup, appearance, about)               |
 
 ### Navigation from Dashboard
 
 - **View All** (next to Recent Transactions) → History Screen
-- **Backup Now** → Triggers backup. Shows login prompt if not authenticated.
+- **Settings Icon** (top bar) → Settings Screen
 - **Goal Card** → Goal edit dialog
+- **FAB** → Add Cash; long-press → Cash Out
 
 ---
 
@@ -174,7 +185,9 @@ The following are intentionally excluded from History:
 
 **Rationale:** An audit log for backup/restore is overkill for a simple offline tracker. Users only need to see their financial activity, not system operations.
 
-**Last Backup timestamp** on Dashboard provides sufficient backup visibility.
+The Dashboard's top-bar backup-status icon (Backed up / Backing up / Backup
+failed / Backup off / Offline) and Settings' "Google Drive" status row
+provide sufficient backup visibility without a separate History entry.
 
 ### Actions Available
 
@@ -197,7 +210,7 @@ Backup uses the authenticated user's Google Drive.
 
 **Authentication requirement:**
 - Backup requires Google Sign-In
-- If user is not logged in when tapping "Backup Now":
+- If user is not logged in when tapping "Back up now" in Settings → Backup:
     - App shows a dialog: "Login to Google to enable backup"
     - User can login or cancel
     - After login, backup runs automatically
@@ -212,19 +225,25 @@ The app automatically creates background backups. No user action required.
 
 ### Manual Backup
 
-Backup Now button on Dashboard:
+The "Back up now" button lives in Settings → Backup section:
 - Logged in user → Backup runs immediately
 - Logged out user → Shows login prompt first
+
+(Dashboard shows a read-only BackupStatusIcon in the top bar that reflects
+the current backup state — Backed up / Backing up / Backup failed / Backup
+off / Offline — but does not trigger a manual backup itself.)
 
 ### Restore
 
 Users restore data from the latest Drive backup.
 
-**Access:** Hidden/developer trigger (e.g., 5 taps on Backup button)
+**Access:** Settings → Backup → "Restore from Drive"
 
 Upon restore:
-- Existing local data is replaced
-- App shows confirmation dialog before proceeding
+- App shows a confirmation dialog explaining that all local transactions
+  and the savings goal will be replaced, and that this cannot be undone
+- "Cancel" closes the dialog without changes
+- "Restore" proceeds with the destructive replacement
 
 ---
 
@@ -240,7 +259,7 @@ Upon restore:
 - **No hardcoded 1–2 second delay**
 
 **Navigation after splash:**
-- User logged in → Dashboard
+- User logged in → Restoring screen (silent re-auth + Drive restore) → Dashboard
 - User not logged in → Login Screen
 
 ### Login Screen
@@ -251,9 +270,9 @@ Upon restore:
 
 **Behavior:**
 - Tap "Sign in with Google" → Google Sign-In sheet
-- Success → Navigate to Dashboard
+- Success → Navigate to Restoring screen, then Dashboard once Drive restore completes
 - Skip → Navigate to Dashboard without authentication
-- User remains offline-only until they explicitly log in via Backup button
+- User remains offline-only until they explicitly log in via Settings → Backup
 
 ### Dashboard Screen
 
@@ -263,31 +282,45 @@ Upon restore:
 
 (Described in detail above)
 
+### Settings Screen
+
+The Settings screen is reached from the Dashboard's top-bar action and
+groups all "chrome" the user might want without cluttering the primary flow:
+
+| Section     | Contents                                                            |
+|-------------|---------------------------------------------------------------------|
+| Account     | Signed-in profile (email, name, avatar), Sign Out, or Sign-in CTA   |
+| Backup      | Google Drive status row, Back up now, Restore from Drive            |
+| Appearance  | Explicit Light / Dark theme toggle (overrides the device theme)     |
+| About       | App name and version                                                |
+
+Restore from Drive is destructive (it replaces all local transactions and
+the savings goal) and always shows a confirmation dialog before proceeding.
+
 ---
 
 ## Removed Features (Explicitly Excluded)
 
 - Activity/Audit Log tab
-- Settings Screen
-- Theme Selector
-- About Screen
 - Auto Backup Toggle
-- Manual Dark/Light Mode Switch
 - Goal Deadline or target date tracking
 - Edit/Delete tracking in a separate log
+
+> Settings, theme selector, About, and manual Dark/Light switching are all
+> shipped — see the Settings Screen section above.
 
 ---
 
 ## Theme System
 
-The app automatically follows the device theme.
+The app defaults to following the device theme, but can be overridden
+manually from Settings → Appearance.
 
-| Device Theme | App Theme  |
-|--------------|------------|
-| Dark Mode    | Dark Mode  |
-| Light Mode   | Light Mode |
-
-No theme configuration is required or provided.
+| Selected mode | App Theme   |
+|---------------|-------------|
+| System        | Follows device |
+| Light         | Light Mode  |
+| Dark          | Dark Mode   |
 
 ---
 
@@ -316,7 +349,7 @@ No theme configuration is required or provided.
 | How to withdraw?         | Long-press FAB → Cash Out with same counter input                      |
 | Navigation to History    | "View All" link on Dashboard                                           |
 | Activity tab scope creep | Removed entirely. Single History list with delete/edit                 |
-| Google Drive auth flow   | Defined: unauthenticated Backup button shows login prompt              |
+| Google Drive auth flow   | Defined: unauthenticated Settings → "Back up now" prompts login        |
 | Splash screen delay      | Removed hardcoded delay. Use Android SplashScreen API                  |
 | Login requirement        | Login screen appears only if user not logged in. Skip option available |
 | Backup without login     | Not possible. App prompts user to login when Backup tapped             |

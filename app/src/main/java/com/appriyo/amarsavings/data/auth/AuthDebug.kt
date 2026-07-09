@@ -10,8 +10,16 @@ import java.security.MessageDigest
 
 /**
  * Centralized, verbose logging for the Google sign-in / Drive-authorization
- * flow. Everything here logs unconditionally (not just in debug builds)
- * because the bug we're chasing only reproduces in signed release APKs.
+ * flow.
+ *
+ * [logEnvironment] / [logSigningCertFingerprints] print config that is
+ * sensitive enough not to ship in release builds (OAuth client id, signing
+ * certificate SHA-1). They are gated on `BuildConfig.LOG_AUTH_VERBOSE`,
+ * which is true for debug builds and false for release.
+ *
+ * [logFailure] only logs exception details (statusCode, message, qualified
+ * class name). It is intentionally NOT gated — exception detail is fine to
+ * ship and is genuinely useful for diagnosing release-only bugs.
  *
  * Filter logcat with:
  *   adb logcat -s AmarAuth:V AndroidRuntime:E
@@ -26,8 +34,12 @@ object AuthDebug {
      *  - the actual signing certificate SHA-1 of this installed APK, which
      *    MUST match the SHA-1 registered on the "Android" OAuth client in
      *    Google Cloud Console for this exact package name.
+     *
+     * No-op in build types where `BuildConfig.LOG_AUTH_VERBOSE == false`
+     * (currently: release).
      */
     fun logEnvironment(context: Context) {
+        if (!BuildConfig.LOG_AUTH_VERBOSE) return
         Log.i(TAG, "==================== AUTH ENV ====================")
         Log.i(TAG, "packageName = ${context.packageName}")
         Log.i(TAG, "versionName=${BuildConfig.VERSION_NAME} versionCode=${BuildConfig.VERSION_CODE}")
@@ -41,6 +53,7 @@ object AuthDebug {
     }
 
     private fun logSigningCertFingerprints(context: Context) {
+        if (!BuildConfig.LOG_AUTH_VERBOSE) return
         try {
             val signatures = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 val info = context.packageManager.getPackageInfo(

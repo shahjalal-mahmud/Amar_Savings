@@ -43,6 +43,10 @@ android {
         val googleOAuthClientId: String = localProperties.getProperty("GOOGLE_OAUTH_CLIENT_ID")
             ?: "REPLACE_WITH_YOUR_WEB_CLIENT_ID.apps.googleusercontent.com"
         buildConfigField("String", "GOOGLE_OAUTH_CLIENT_ID", "\"$googleOAuthClientId\"")
+        // Gated log of OAuth client id + signing-cert SHA-1. Defaults to true
+        // for debug builds and false for release, but each buildType can
+        // override it (e.g. a "releaseWithLogs" variant).
+        buildConfigField("boolean", "LOG_AUTH_VERBOSE", "true")
     }
 
     signingConfigs {
@@ -65,6 +69,12 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+
+            // Don't dump OAuth client id / signing-cert SHA-1 in release
+            // builds. logFailure() is intentionally ungated — exception
+            // detail is fine to ship and useful for diagnosing release-only
+            // bugs.
+            buildConfigField("boolean", "LOG_AUTH_VERBOSE", "false")
 
             if (keystorePropertiesFile.exists()) {
                 signingConfig = signingConfigs.getByName("release")
@@ -130,6 +140,9 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
 
     testImplementation(libs.junit)
+    testImplementation(libs.mockk)
+    testImplementation(libs.turbine)
+    testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))

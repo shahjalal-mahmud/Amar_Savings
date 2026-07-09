@@ -24,6 +24,57 @@ class BackupRepository(
     private val _state = MutableStateFlow<BackupState>(BackupState.Idle)
     val state: StateFlow<BackupState> = _state.asStateFlow()
 
+    /**
+     * Runs [block] (a Drive REST call) and, if it throws
+     * [DriveTokenExpiredException], drops the stale cached token, attempts one
+     * silent re-authorization via [AuthRepository.ensureDriveAccess], and — if
+     * a fresh token was obtained — retries [block] exactly once.
+     *
+     * If the silent re-authorization needs UI (returns false, surfaced via
+     * [AuthRepository.driveConsentIntent]), this surfaces a clean
+     * "Drive access needs to be re-granted" failure instead of retrying
+     * blindly. Without this guard, the auto-backup debounce would hammer
+     * the auth API every 5 seconds.
+     *
+     * Kept here (not in DriveBackupClient) so the REST wrapper stays thin and
+     * so this orchestration has access to AuthRepository.
+     */
+    private suspend fun <T> withDriveTokenRetry(
+        operation: String,
+        block: suspend () -> Result<T>
+    ): Result<T> {
+        val first = block()
+        val expired = first.exceptionOrNull() as? DriveTokenExpiredException
+            ?: return first
+
+        // Drop the stale cached token so ensureDriveAccess() doesn't short-
+        // circuit on it.
+        auth.clearDriveToken()
+        val reauthorized = auth.ensureDriveAccess()
+        if (!reauthorized) {
+            return Result.failure(
+                DriveTokenExpiredException(
+                    operation = operation,
+                    message = "Drive access needs to be re-granted (token refresh returned no token; consent UI surfaced via driveConsentIntent)"
+                )
+            )
+        }
+
+        // Single retry only. If this also 401s, surface that as-is — do NOT
+        // loop, since the only realistic cause is a hard auth state we can't
+        // fix without UI.
+        val second = block()
+        if (second.exceptionOrNull() is DriveTokenExpiredException) {
+            return Result.failure(
+                DriveTokenExpiredException(
+                    operation = operation,
+                    message = "Drive token still expired after one silent re-authorization (HTTP 401)"
+                )
+            )
+        }
+        return second
+    }
+
     /** Builds a snapshot [BackupFile] of the current local state. */
     suspend fun buildSnapshot(): BackupFile {
         val email = when (val s = auth.state.value) {
@@ -53,7 +104,7 @@ class BackupRepository(
             val snapshot = buildSnapshot()
             val bytes = json.encodeToString(BackupFile.serializer(), snapshot)
                 .toByteArray(Charsets.UTF_8)
-            val uploaded = drive.upload(bytes)
+            val uploaded = withDriveTokenRetry("upload") { drive.upload(bytes) }
             uploaded.fold(
                 onSuccess = { fileId ->
                     prefs.setDriveBackupFileId(fileId)
@@ -80,7 +131,24 @@ class BackupRepository(
         if (!auth.ensureDriveAccess()) return RestoreOutcome.Failed("Drive authorization required")
 
         return mutex.withLock {
-            val downloaded = drive.download()
+            // Look up the file id once, then thread it through download +
+            // applyRestore. Previously applyRestore() called getMeta() again at
+            // the end purely to rediscover an id it could have just received,
+            // costing an extra REST round-trip on every successful restore.
+            val meta = withDriveTokenRetry("getMeta") { drive.getMeta() }
+            val fileId = meta.getOrNull()?.fileId
+            if (fileId == null) {
+                return@withLock when (meta.exceptionOrNull()) {
+                    null -> {
+                        // Genuinely no backup file present.
+                        prefs.setLastBackupAt(0L)
+                        prefs.setLocalStateHash(savings.computeLocalStateHash())
+                        RestoreOutcome.NoBackup
+                    }
+                    else -> RestoreOutcome.Failed(meta.exceptionOrNull()?.message ?: "Download failed")
+                }
+            }
+            val downloaded = withDriveTokenRetry("download") { drive.download(fileId) }
             downloaded.fold(
                 onSuccess = { backup ->
                     if (backup == null) {
@@ -88,7 +156,7 @@ class BackupRepository(
                         prefs.setLocalStateHash(savings.computeLocalStateHash())
                         RestoreOutcome.NoBackup
                     } else {
-                        applyRestore(backup)
+                        applyRestore(backup, fileId)
                     }
                 },
                 onFailure = { t ->
@@ -98,14 +166,16 @@ class BackupRepository(
         }
     }
 
-    private suspend fun applyRestore(backup: BackupFile): RestoreOutcome {
+    private suspend fun applyRestore(backup: BackupFile, fileId: String): RestoreOutcome {
         return try {
             val transactions = backup.transactions.map { it.toEntity() }
             savings.replaceAllTransactions(transactions)
             prefs.setSavingsGoal(backup.savingsGoal)
             prefs.setLastBackupAt(backup.createdAt)
             prefs.setLocalStateHash(savings.computeLocalStateHash())
-            drive.getMeta().getOrNull()?.fileId?.let { prefs.setDriveBackupFileId(it) }
+            // fileId is already known — no need to call getMeta() again just
+            // to persist it.
+            prefs.setDriveBackupFileId(fileId)
             _state.value = BackupState.SyncedAt(backup.createdAt)
             RestoreOutcome.Restored(transactions.size)
         } catch (t: Throwable) {

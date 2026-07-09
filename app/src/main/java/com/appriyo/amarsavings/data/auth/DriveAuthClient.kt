@@ -96,6 +96,19 @@ class DriveAuthClient {
         currentToken = null
     }
 
+    /**
+     * Whether a foreground [Activity] is currently attached to [ActivityHolder].
+     *
+     * Callers that want to invoke [authorizeDriveAccess] (directly or via
+     * `AuthRepository.ensureDriveAccess`) should check this first and treat a
+     * `false` result as "app is not in the foreground, can't drive a consent
+     * sheet right now" rather than as an error. Without this guard, a
+     * backgrounded auto-upload tick or process teardown will throw out of
+     * [ActivityHolder.requireActivity] and surface as a confusing
+     * "Drive authorization required" failure.
+     */
+    fun hasActivityForeground(): Boolean = ActivityHolder.currentActivity != null
+
     companion object {
         /** Required scope for the app's hidden appDataFolder. */
         const val DRIVE_APP_DATA_SCOPE = "https://www.googleapis.com/auth/drive.appdata"

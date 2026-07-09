@@ -27,6 +27,7 @@ import androidx.compose.material.icons.rounded.Cloud
 import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.LightMode
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -40,7 +41,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -68,6 +71,11 @@ fun SettingsScreen(
     val snackbar by viewModel.snackbar.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
+    // Confirmation gate for the destructive "Restore from Drive" action.
+    // BackupRepository.applyRestore() calls dao.replaceAll(transactions),
+    // wiping local state — the user must opt in explicitly.
+    var showRestoreConfirm by remember { mutableStateOf(false) }
+
     LaunchedEffect(snackbar) {
         val msg = snackbar ?: return@LaunchedEffect
         snackbarHostState.showSnackbar(msg)
@@ -87,13 +95,40 @@ fun SettingsScreen(
             TopRow(onBack)
             AccountSection(state, onSignIn, viewModel)
             Spacer(Modifier.height(20.dp))
-            BackupSection(state, viewModel)
+            BackupSection(state, viewModel, onRequestRestore = { showRestoreConfirm = true })
             Spacer(Modifier.height(20.dp))
             AppearanceSection(onToggleTheme)
             Spacer(Modifier.height(20.dp))
             AboutSection()
             Spacer(Modifier.height(40.dp))
         }
+    }
+
+    if (showRestoreConfirm) {
+        AlertDialog(
+            onDismissRequest = { showRestoreConfirm = false },
+            title = { Text("Restore from Google Drive?") },
+            text = {
+                Text(
+                    "This will replace all transactions and your savings goal " +
+                        "on this device with the data from your Drive backup. " +
+                        "This cannot be undone."
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showRestoreConfirm = false
+                    viewModel.restore()
+                }) {
+                    Text("Restore")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRestoreConfirm = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
 
@@ -173,7 +208,8 @@ private fun AccountSection(
 @Composable
 private fun BackupSection(
     state: SettingsUiState,
-    viewModel: SettingsViewModel
+    viewModel: SettingsViewModel,
+    onRequestRestore: () -> Unit
 ) {
     SectionLabel("Backup")
     Card {
@@ -199,7 +235,10 @@ private fun BackupSection(
             icon = Icons.Rounded.Download,
             title = "Restore from Drive",
             enabled = state.authState is AuthState.SignedIn,
-            onClick = { viewModel.restore() }
+            // Restore wipes local transactions and the savings goal (see
+            // BackupRepository.applyRestore). Confirmation is handled at the
+            // screen level so we just request it here.
+            onClick = onRequestRestore
         )
     }
 }
