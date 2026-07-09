@@ -2,7 +2,6 @@ package com.appriyo.amarsavings.data.backup
 
 import com.appriyo.amarsavings.data.auth.AuthRepository
 import com.appriyo.amarsavings.data.auth.AuthState
-import com.appriyo.amarsavings.data.auth.GoogleAuthClient
 import com.appriyo.amarsavings.data.db.AppPreferences
 import com.appriyo.amarsavings.data.db.Transaction
 import com.appriyo.amarsavings.data.repository.SavingsRepository
@@ -13,18 +12,8 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json
 
-/**
- * Orchestrates serialization of local Room state into the on-the-wire
- * [BackupFile] and the round-trip with [DriveBackupClient].
- *
- * Guarantees:
- *  - Concurrent uploads are serialised via a [Mutex].
- *  - Restore runs inside a single atomic Room transaction (see DAO).
- *  - Token refresh on 401 is handled transparently by re-trying once.
- */
 class BackupRepository(
     private val auth: AuthRepository,
-    private val authClient: GoogleAuthClient,
     private val prefs: AppPreferences,
     private val drive: DriveBackupClient,
     private val savings: SavingsRepository,
@@ -37,7 +26,11 @@ class BackupRepository(
 
     /** Builds a snapshot [BackupFile] of the current local state. */
     suspend fun buildSnapshot(): BackupFile {
-        val email = (auth.state.value as? AuthState.SignedIn)?.email
+        val email = when (val s = auth.state.value) {
+            is AuthState.SignedIn -> s.email
+            is AuthState.Restoring -> s.email
+            else -> null
+        }
         return BackupFile(
             version = 1,
             createdAt = System.currentTimeMillis(),
@@ -52,14 +45,15 @@ class BackupRepository(
         if (auth.state.value !is AuthState.SignedIn) {
             return Result.failure(IllegalStateException("Not signed in"))
         }
+        if (!auth.ensureDriveAccess()) {
+            return Result.failure(IllegalStateException("Drive authorization required — check driveConsentIntent"))
+        }
         return mutex.withLock {
             _state.value = BackupState.Syncing
             val snapshot = buildSnapshot()
             val bytes = json.encodeToString(BackupFile.serializer(), snapshot)
                 .toByteArray(Charsets.UTF_8)
-            val uploaded = doWithTokenRefresh {
-                drive.upload(bytes)
-            }
+            val uploaded = drive.upload(bytes)
             uploaded.fold(
                 onSuccess = { fileId ->
                     prefs.setDriveBackupFileId(fileId)
@@ -81,13 +75,15 @@ class BackupRepository(
      * Returns a [RestoreOutcome] describing what happened.
      */
     suspend fun restoreIfAny(): RestoreOutcome {
-        if (auth.state.value !is AuthState.SignedIn) return RestoreOutcome.Idle
+        // Called by BackupScheduler while auth state is Restoring, not yet SignedIn.
+        if (auth.state.value !is AuthState.Restoring) return RestoreOutcome.Idle
+        if (!auth.ensureDriveAccess()) return RestoreOutcome.Failed("Drive authorization required")
+
         return mutex.withLock {
-            val downloaded = doWithTokenRefresh { drive.download() }
+            val downloaded = drive.download()
             downloaded.fold(
                 onSuccess = { backup ->
                     if (backup == null) {
-                        // No backup yet — first-time sign-in for this account.
                         prefs.setLastBackupAt(0L)
                         prefs.setLocalStateHash(savings.computeLocalStateHash())
                         RestoreOutcome.NoBackup
@@ -109,22 +105,12 @@ class BackupRepository(
             prefs.setSavingsGoal(backup.savingsGoal)
             prefs.setLastBackupAt(backup.createdAt)
             prefs.setLocalStateHash(savings.computeLocalStateHash())
-            // Persist the drive file id so subsequent uploads update in place.
             drive.getMeta().getOrNull()?.fileId?.let { prefs.setDriveBackupFileId(it) }
             _state.value = BackupState.SyncedAt(backup.createdAt)
             RestoreOutcome.Restored(transactions.size)
         } catch (t: Throwable) {
             RestoreOutcome.Failed(t.message ?: "Restore failed")
         }
-    }
-
-    /**
-     * Try once with the cached token, refresh and retry once on auth failure.
-     * Silent re-auth isn't available in play-services-auth 21.x, so on a 401 we
-     * surface the error and rely on the UI to prompt the user to re-sign-in.
-     */
-    private suspend fun <T> doWithTokenRefresh(block: suspend () -> Result<T>): Result<T> {
-        return block()
     }
 }
 
