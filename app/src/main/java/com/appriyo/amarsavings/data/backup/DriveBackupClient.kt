@@ -92,12 +92,17 @@ class DriveBackupClient(
     }
 
     /**
-     * Downloads and parses the backup file, or returns null if no backup exists.
+     * Downloads and parses the backup file by its Drive file id, or returns
+     * null if the server says there's nothing there (404).
+     *
+     * Use this overload when the caller already knows the file id (e.g.
+     * [BackupRepository] learned it from a prior `getMeta()`), to avoid
+     * re-listing the whole appDataFolder just to download.
+     *
      * Content reads use the plain (non-upload) host.
      */
-    suspend fun download(): Result<BackupFile?> = withContext(Dispatchers.IO) {
+    suspend fun download(id: String): Result<BackupFile?> = withContext(Dispatchers.IO) {
         runCatching {
-            val id = findBackupFileId() ?: return@runCatching null
             val token = auth.getAccessToken()
                 ?: error("No access token — sign in first")
             val req = Request.Builder()
@@ -118,6 +123,19 @@ class DriveBackupClient(
                 if (body.isNullOrBlank()) null
                 else json.decodeFromString(BackupFile.serializer(), body)
             }
+        }
+    }
+
+    /**
+     * Convenience: look up the existing backup file id via [getMeta] then
+     * download by id. Returns null if no backup file exists at all.
+     * Prefer [download] with an already-known id when possible to avoid the
+     * extra list call.
+     */
+    suspend fun download(): Result<BackupFile?> = withContext(Dispatchers.IO) {
+        runCatching {
+            val id = findBackupFileId() ?: return@runCatching null
+            download(id).getOrThrow()
         }
     }
 
@@ -157,7 +175,10 @@ class DriveBackupClient(
             append("Content-Type: application/json; charset=UTF-8\r\n\r\n")
             append(metadata).append("\r\n")
             append("--").append(BOUNDARY).append("\r\n")
-            append("Content-Type: application/json\r\n\r\n")
+            // Match the actual encoding of the bytes appended below
+            // (UTF-8 encoded JSON), instead of the unparameterized
+            // application/json that suggested some other encoding.
+            append("Content-Type: application/json; charset=UTF-8\r\n\r\n")
         }.toByteArray(Charsets.UTF_8)
             .let { prefix ->
                 prefix + content + "\r\n--$BOUNDARY--\r\n".toByteArray(Charsets.UTF_8)
