@@ -112,9 +112,9 @@ images to `docs/screenshots/` and embedding them above.
 
 ### ☁️ Backup & Restore
 
-- **Manual Backup:** Tap "Backup Now" on Dashboard (requires Google Sign-In)
+- **Manual Backup:** Tap "Back up now" in Settings → Backup section (requires Google Sign-In)
 - **Automatic Backup:** Happens in background when logged in
-- **Restore:** Hidden trigger (5 taps on Backup button) for advanced users
+- **Restore:** Open Settings → Backup → "Restore from Drive". Shows a confirmation dialog before replacing local data.
 
 ---
 
@@ -164,6 +164,12 @@ images to `docs/screenshots/` and embedding them above.
 - Complete transaction list
 - Date & Time • Type • Denomination Breakdown • Total Amount
 - Swipe to delete • Tap to edit
+
+### Settings Screen
+- **Account section** — current sign-in profile, or "Sign in with Google" CTA when signed out, plus Sign Out
+- **Backup section** — "Google Drive" status row, "Back up now" action (debounced with an automatic backup indicator), and "Restore from Drive" action (always confirms before replacing local data)
+- **Appearance section** — explicit theme toggle (Light / Dark / Follow system) so users can override the default adaptive theme
+- **About section** — app name and version
 
 ---
 
@@ -221,12 +227,9 @@ graph TD
 
 ## ❌ What's NOT Included (By Design)
 
-- No Settings Screen
-- No Theme Selector
 - No Activity/Audit Log Tab
 - No Goal Deadlines
 - No Auto Backup Toggle
-- No Manual Dark/Light Mode Switch
 - No Edit/Delete tracking in separate log
 
 > **Why?** Amar Savings stays focused on its core purpose: tracking physical savings with minimal friction.
@@ -290,26 +293,58 @@ Amar_Savings/
 │   └── PULL_REQUEST_TEMPLATE.md
 ├── app/
 │   └── src/main/java/com/appriyo/amarsavings/
-│       ├── AmarSavingsApp.kt             # Application class — Koin init
+│       ├── AmarSavingsApp.kt             # Application class — Koin init + BackupScheduler.start
 │       ├── MainActivity.kt               # Single-activity host
-│       ├── navigation/                   # Navigation Compose graph
-│       │   └── AppNavGraph.kt
+│       ├── navigation/
+│       │   └── AppNavGraph.kt            # NavHost + Routes (Dashboard / History / Settings / SignIn / Restore)
 │       ├── data/
-│       │   ├── db/                       # Room entities, DAOs, AppDatabase, AppPreferences
+│       │   ├── auth/                     # Sign-in / Drive authorization
+│       │   │   ├── AuthState.kt          # State machine: SignedOut / Restoring / SignedIn / Error
+│       │   │   ├── AuthRepository.kt     # Single source of truth for sign-in status
+│       │   │   ├── FirebaseAuthClient.kt # Firebase Auth (email / display name / photo)
+│       │   │   ├── DriveAuthClient.kt    # Identity Authorization API for drive.appdata scope
+│       │   │   └── AuthDebug.kt          # Conditional diagnostic logging
+│       │   ├── backup/                   # Google Drive backup orchestration
+│       │   │   ├── BackupModels.kt       # BackupFile, BackupMeta, BackupState, RestoreOutcome
+│       │   │   ├── DriveBackupClient.kt  # Thin OkHttp REST wrapper + typed 401 errors
+│       │   │   ├── BackupRepository.kt   # Snapshot / upload / restore + 401 retry-once
+│       │   │   └── BackupScheduler.kt    # Connectivity + dirty stream + foreground re-sync
+│       │   ├── db/                       # Room entities, DAOs, AppDatabase, AppPreferences (DataStore)
+│       │   │   ├── AppDatabase.kt
+│       │   │   ├── AppPreferences.kt
+│       │   │   ├── Transaction.kt
+│       │   │   └── TransactionDao.kt
 │       │   └── repository/
-│       │       └── SavingsRepository.kt  # Single source of truth
-│       ├── di/                           # Koin modules
-│       │   └── AppModule.kt
+│       │       └── SavingsRepository.kt  # Single source of truth for local savings state
+│       ├── di/
+│       │   └── AppModule.kt              # Koin module wiring all singletons
 │       ├── ui/
 │       │   ├── components/               # Reusable composables
-│       │   │                            # (TransactionItem, CashInputBottomSheet, GoalDialog)
+│       │   │   ├── CashInputBottomSheet.kt
+│       │   │   ├── CloudStatusChip.kt
+│       │   │   ├── GlassCard.kt
+│       │   │   ├── GoalDialog.kt
+│       │   │   ├── GoogleGIcon.kt
+│       │   │   ├── Modifiers.kt          # clickableNoRipple, etc.
+│       │   │   ├── RestoreLoadingScreen.kt
+│       │   │   ├── SignInBanner.kt
+│       │   │   └── TransactionItem.kt
 │       │   ├── dashboard/
-│       │   │   └── DashboardScreen.kt
+│       │   │   └── DashboardScreen.kt    # FAB, goal card, recent transactions, backup status icon
 │       │   ├── history/
-│       │   │   └── HistoryScreen.kt
+│       │   │   └── HistoryScreen.kt      # Full transaction list with swipe-to-edit/delete
+│       │   ├── settings/
+│       │   │   ├── SettingsScreen.kt     # Account, Backup, Appearance, About + restore confirm dialog
+│       │   │   └── SettingsViewModel.kt
+│       │   ├── signin/
+│       │   │   ├── SignInScreen.kt       # "Sign in with Google" + Skip
+│       │   │   └── SignInViewModel.kt
 │       │   └── theme/                    # Color, Theme, Type
+│       │       ├── Color.kt
+│       │       ├── Theme.kt
+│       │       └── Type.kt
 │       ├── util/
-│       │   └── Formatters.kt
+│       │   └── Formatters.kt             # Currency and relative-time formatting
 │       └── viewmodel/                    # DashboardViewModel, TransactionViewModel, HistoryViewModel
 ├── build.gradle.kts                      # Root Gradle script
 ├── settings.gradle.kts
