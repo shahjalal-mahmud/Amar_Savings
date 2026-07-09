@@ -7,11 +7,9 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.ksp)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.google.services)
 }
 
-// Load release signing credentials from keystore.properties at the project root.
-// File is gitignored. If it's missing, release builds fall back to debug signing
-// so local development keeps working without secrets configured.
 val keystorePropertiesFile = rootProject.file("keystore.properties")
 val keystoreProperties = Properties().apply {
     if (keystorePropertiesFile.exists()) {
@@ -19,9 +17,6 @@ val keystoreProperties = Properties().apply {
     }
 }
 
-// Load local.properties so we can read GOOGLE_OAUTH_CLIENT_ID from it.
-// project.findProperty() does NOT read local.properties automatically —
-// only Gradle/AGP internals do that for sdk.dir. We have to parse it ourselves.
 val localPropertiesFile = rootProject.file("local.properties")
 val localProperties = Properties().apply {
     if (localPropertiesFile.exists()) {
@@ -42,8 +37,9 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        // Google OAuth Web Client ID, sourced from local.properties (which is gitignored).
-        // The value is a *public* identifier (per Google docs) and is safe to ship in BuildConfig.
+        // Google OAuth Web Client ID (from Firebase's Google sign-in provider
+        // config / google-services.json), used by both Credential Manager's
+        // GetGoogleIdOption and the Drive Authorization API.
         val googleOAuthClientId: String = localProperties.getProperty("GOOGLE_OAUTH_CLIENT_ID")
             ?: "REPLACE_WITH_YOUR_WEB_CLIENT_ID.apps.googleusercontent.com"
         buildConfigField("String", "GOOGLE_OAUTH_CLIENT_ID", "\"$googleOAuthClientId\"")
@@ -115,7 +111,16 @@ dependencies {
     implementation(libs.koin.android)
     implementation(libs.koin.androidx.compose)
 
-    // Google Sign-In
+    // Firebase Auth (identity)
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.auth)
+
+    // Credential Manager (Google sign-in picker used with Firebase)
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play.services.auth)
+    implementation(libs.googleid)
+
+    // Identity Authorization API (Drive `drive.appdata` scope — NOT identity)
     implementation(libs.play.services.auth)
 
     // OkHttp (for Drive REST calls)
